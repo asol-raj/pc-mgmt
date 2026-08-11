@@ -1,0 +1,83 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+if (Astro.locals.isAuthed) {
+  return Astro.redirect('/admin');
+}
+---
+
+<Layout title="Admin Login — PC Register">
+  <div class="min-h-screen flex items-center justify-center bg-slate-100 px-4">
+    <div
+      class="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-8"
+      x-data="{ password: '', error: '', loading: false,
+        async submit() {
+          this.loading = true;
+          this.error = '';
+          try {
+            const res = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: this.password }),
+            });
+            if (res.ok) {
+              window.location.href = '/admin';
+            } else {
+              const data = await res.json().catch(() => ({}));
+              this.error = data.error || 'Incorrect password';
+            }
+          } catch {
+            this.error = 'Network error. Please try again.';
+          } finally {
+            this.loading = false;
+          }
+        }
+      }"
+      x-cloak
+    >
+      <p class="text-xs font-semibold uppercase tracking-wider text-indigo-500">Office IT</p>
+      <h1 class="text-2xl font-bold text-slate-900 mt-1">Admin Login</h1>
+      <p class="text-sm text-slate-500 mt-1">Enter the admin password to manage the PC register.</p>
+
+      <form class="mt-6 flex flex-col gap-4" x-on:submit.prevent="submit()">
+        <label class="flex flex-col gap-1">
+          <span class="text-xs font-medium text-slate-500">Password</span>
+          <input
+            type="password"
+            x-model="password"
+            required
+            autofocus
+            class="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+        </label>
+
+        <p class="text-sm text-rose-600" x-show="error" x-text="error"></p>
+
+        <button
+          type="submit"
+          :disabled="loading"
+          class="rounded-lg bg-indigo-600 text-white text-sm font-semibold py-2.5 hover:bg-indigo-700 disabled:opacity-60"
+        >
+          <span x-show="!loading">Log in</span>
+          <span x-show="loading">Logging in...</span>
+        </button>
+      </form>
+
+      <a href="/" class="block mt-6 text-center text-sm text-slate-400 hover:text-slate-600">
+        &larr; Back to PC Register
+      </a>
+    </div>
+  </div>
+
+  <script>
+    import Alpine from 'alpinejs';
+    window.Alpine = Alpine;
+    Alpine.start();
+  </script>
+</Layout>
+
+<style>
+  [x-cloak] {
+    display: none !important;
+  }
+</style>

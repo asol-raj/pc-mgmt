@@ -1,0 +1,126 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LeftPanel from '../components/LeftPanel.astro';
+import TopNavBar from '../components/TopNavBar.astro';
+import VitalsPane from '../components/VitalsPane.astro';
+import { MonitorX, ArrowUp, ArrowDown, ChevronsUpDown } from '@lucide/astro';
+import db from '../lib/db';
+import type { Pc } from '../lib/types';
+
+const [rows] = await db.query('SELECT * FROM pcs ORDER BY name ASC');
+const pcs = rows as Pc[];
+---
+
+<Layout title="PC Register">
+  <div class="flex h-screen overflow-hidden" x-data="pcApp()" x-cloak>
+    <LeftPanel />
+
+    <div class="flex-1 flex flex-col min-w-0">
+      <TopNavBar />
+
+      <main class="flex-1 min-h-0 flex flex-col p-6 gap-4">
+        <template x-if="filtered.length === 0">
+          <div class="flex flex-col items-center gap-2 text-center mt-16">
+            <MonitorX size={28} class="text-slate-300" />
+            <p class="text-sm text-slate-400">No PCs match the current filters.</p>
+          </div>
+        </template>
+
+        <template x-if="filtered.length > 0">
+          <div class="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white">
+            <table class="min-w-max w-full text-sm border-separate border-spacing-0">
+              <thead>
+                <tr>
+                  <template x-for="col in columns" :key="col.key">
+                    <th class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-3 py-2 align-top text-left">
+                      <button
+                        type="button"
+                        x-on:click="toggleSort(col)"
+                        class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-800 whitespace-nowrap"
+                      >
+                        <span x-text="col.label"></span>
+                        <ChevronsUpDown size={12} x-show="sortKey !== col.key" class="text-slate-300" />
+                        <ArrowUp size={12} x-show="sortKey === col.key && sortDir === 'asc'" />
+                        <ArrowDown size={12} x-show="sortKey === col.key && sortDir === 'desc'" />
+                      </button>
+
+                      <div class="mt-1.5">
+                        <template x-if="col.type === 'select'">
+                          <select
+                            x-model="colFilters[col.filterKey || col.key]"
+                            class="w-full rounded border border-slate-300 text-xs px-1.5 py-1 font-normal normal-case focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          >
+                            <option value="All">All</option>
+                            <template x-for="opt in col.options" :key="opt">
+                              <option :value="opt" x-text="opt"></option>
+                            </template>
+                          </select>
+                        </template>
+                        <template x-if="col.type === 'text'">
+                          <input
+                            type="text"
+                            x-model="colFilters[col.filterKey || col.key]"
+                            placeholder="Filter..."
+                            class="w-full rounded border border-slate-300 text-xs px-1.5 py-1 font-normal normal-case focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        </template>
+                      </div>
+                    </th>
+                  </template>
+                </tr>
+              </thead>
+
+              <tbody class="divide-y divide-dotted divide-slate-300">
+                <template x-for="pc in filtered" :key="pc.id">
+                  <tr
+                    x-on:click="select(pc.id)"
+                    class="cursor-pointer transition"
+                    :class="pc.id === selectedId ? 'bg-indigo-50' : 'hover:bg-slate-50'"
+                  >
+                    <template x-for="col in columns" :key="col.key">
+                      <td
+                        class="px-3 py-2.5 text-slate-700"
+                        :class="isWrapCol(col.key) ? 'max-w-[220px] truncate' : 'whitespace-nowrap'"
+                        :title="isWrapCol(col.key) ? cellText(col, pc) : null"
+                      >
+                        <template x-if="col.badge">
+                          <span
+                            class="text-xs rounded-full px-2 py-0.5 font-semibold"
+                            :class="col.badge === 'status' ? statusBadgeClass(pc[col.key]) : performanceBadgeClass(pc[col.key])"
+                            x-text="pc[col.key]"
+                          ></span>
+                        </template>
+                        <template x-if="!col.badge">
+                          <span x-text="cellText(col, pc)"></span>
+                        </template>
+                      </td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </main>
+    </div>
+
+    <VitalsPane />
+  </div>
+
+  <script type="application/json" id="pcs-data" set:html={JSON.stringify(pcs)} />
+
+  <script>
+    import Alpine from 'alpinejs';
+    import pcApp from '../scripts/pcApp.js';
+
+    window.pcApp = pcApp;
+    window.Alpine = Alpine;
+    Alpine.start();
+  </script>
+</Layout>
+
+<style>
+  [x-cloak] {
+    display: none !important;
+  }
+</style>

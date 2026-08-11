@@ -1,0 +1,105 @@
+---
+import { MousePointerClick, MonitorCog, ScreenShare, Building2, AppWindow, Cpu, MemoryStick, HardDrive, Gauge } from '@lucide/astro';
+---
+
+<aside class="w-96 shrink-0 border-l border-slate-200 bg-white overflow-y-auto">
+  <template x-if="!selected">
+    <div class="h-full flex flex-col items-center justify-center p-8 text-center gap-3">
+      <MousePointerClick size={28} class="text-slate-300" />
+      <p class="text-slate-400 text-sm">Select a PC from the list to view its quick specs here.</p>
+    </div>
+  </template>
+
+  <template x-if="selected">
+    <div class="flex flex-col h-full">
+      <div class="relative px-6 pt-5 pb-4 text-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 text-white overflow-hidden shrink-0">
+        <div
+          class="pointer-events-none absolute inset-0 opacity-10"
+          style="background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0); background-size: 16px 16px;"
+        ></div>
+
+        <div class="relative mx-auto w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
+          <MonitorCog size={22} />
+        </div>
+
+        <h2 class="relative mt-2 text-lg font-extrabold leading-tight" x-text="selected.name"></h2>
+        <p class="relative mt-0.5 text-xs text-indigo-100 font-mono" x-text="selected.asset_tag"></p>
+
+        <span
+          class="relative mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold"
+        >
+          <span
+            class="w-1.5 h-1.5 rounded-full"
+            :class="selected.status === 'Retired' ? 'bg-rose-400' : 'bg-emerald-400'"
+          ></span>
+          <span x-text="selected.status"></span>
+        </span>
+      </div>
+
+      <div class="px-6 divide-y divide-slate-100">
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
+            <ScreenShare size={14} class="text-slate-400" />
+            TeamViewer ID
+          </span>
+          <span class="text-base font-semibold text-slate-900 font-mono" x-text="selected.teamviewer_id || '—'"></span>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
+            <Building2 size={14} class="text-slate-400" />
+            Brand
+          </span>
+          <span class="text-base font-semibold text-slate-900" x-text="selected.brand || '—'"></span>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
+            <AppWindow size={14} class="text-slate-400" />
+            Operating System
+          </span>
+          <span class="text-base font-semibold text-slate-900" x-text="selected.os"></span>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
+            <Cpu size={14} class="text-slate-400" />
+            CPU
+          </span>
+          <span class="text-base font-semibold text-slate-900 text-right" x-text="selected.cpu || '—'"></span>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
+            <MemoryStick size={14} class="text-slate-400" />
+            RAM
+          </span>
+          <span class="text-base font-semibold text-slate-900" x-text="selected.ram_gb ? selected.ram_gb + ' GB' : '—'"></span>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
+            <HardDrive size={14} class="text-slate-400" />
+            Storage
+          </span>
+          <span
+            class="text-base font-semibold text-slate-900"
+            x-text="[selected.storage_capacity, selected.storage_type].filter(Boolean).join(' ') || '—'"
+          ></span>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
+            <Gauge size={14} class="text-slate-400" />
+            Performance
+          </span>
+          <span
+            class="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            :class="performanceBadgeClass(selected.performance)"
+            x-text="selected.performance"
+          ></span>
+        </div>
+      </div>
+    </div>
+  </template>
+</aside>

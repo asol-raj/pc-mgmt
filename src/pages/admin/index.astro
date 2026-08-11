@@ -1,0 +1,362 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import db from '../../lib/db';
+import type { Pc } from '../../lib/types';
+import {
+  MonitorCog,
+  ExternalLink,
+  LogOut,
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  RotateCw,
+  MonitorX,
+  X,
+  Check,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUpDown,
+  Download,
+  Upload,
+} from '@lucide/astro';
+
+const [rows] = await db.query('SELECT * FROM pcs ORDER BY name ASC');
+const pcs = rows as Pc[];
+---
+
+<Layout title="Admin — PC Register">
+  <div class="min-h-screen bg-slate-100 flex flex-col" x-data="adminApp()" x-cloak>
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+          <MonitorCog size={20} />
+        </div>
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-indigo-500 leading-none">Office IT</p>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">Admin Dashboard</h1>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="/" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+          View public register <ExternalLink size={14} />
+        </a>
+        <button
+          type="button"
+          x-on:click="logout()"
+          class="flex items-center gap-1.5 text-sm font-medium text-rose-600 hover:text-rose-800"
+        >
+          <LogOut size={15} />
+          Log out
+        </button>
+      </div>
+    </header>
+
+    <main class="flex-1 min-h-0 flex flex-col p-6 max-w-[1600px] w-full mx-auto gap-4">
+      <div class="flex items-center justify-between gap-4">
+        <div class="relative w-full max-w-sm">
+          <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            x-model="search"
+            placeholder="Search by name, asset tag, brand, location..."
+            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a
+            href="/api/pcs/export"
+            class="flex items-center gap-1.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold px-4 py-2 hover:bg-slate-50"
+          >
+            <Download size={16} />
+            Export CSV
+          </a>
+          <label
+            class="flex items-center gap-1.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold px-4 py-2 hover:bg-slate-50 cursor-pointer"
+            :class="importing ? 'opacity-60 pointer-events-none' : ''"
+          >
+            <Upload size={16} />
+            <span x-text="importing ? 'Importing...' : 'Import CSV'"></span>
+            <input type="file" accept=".csv,text/csv" class="hidden" x-on:change="importCsv($event)" />
+          </label>
+          <button
+            type="button"
+            x-on:click="openCreate()"
+            class="flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold px-4 py-2 hover:bg-indigo-700"
+          >
+            <Plus size={16} />
+            Add New PC
+          </button>
+        </div>
+      </div>
+
+      <template x-if="importResult">
+        <div
+          class="rounded-lg border px-4 py-3 text-sm flex items-start justify-between gap-4"
+          :class="importResult.error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'"
+        >
+          <div class="flex-1">
+            <template x-if="importResult.error">
+              <p x-text="importResult.error"></p>
+            </template>
+            <template x-if="!importResult.error">
+              <div>
+                <p>
+                  Import complete: <span x-text="importResult.created"></span> created,
+                  <span x-text="importResult.updated"></span> updated<span x-show="importResult.errors?.length">, <span x-text="importResult.errors.length"></span> failed</span>.
+                </p>
+                <ul class="mt-1 list-disc list-inside text-xs text-rose-700" x-show="importResult.errors?.length">
+                  <template x-for="err in importResult.errors.slice(0, 10)" :key="err.row">
+                    <li x-text="`Row ${err.row}: ${err.error}`"></li>
+                  </template>
+                </ul>
+              </div>
+            </template>
+          </div>
+          <button type="button" x-on:click="importResult = null" class="text-slate-400 hover:text-slate-700 shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+      </template>
+
+      <template x-if="filtered.length === 0">
+        <div class="flex flex-col items-center gap-2 text-center mt-16">
+          <MonitorX size={28} class="text-slate-300" />
+          <p class="text-sm text-slate-400">No PCs found.</p>
+        </div>
+      </template>
+
+      <template x-if="filtered.length > 0">
+        <div class="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white">
+          <table class="min-w-max w-full text-sm border-separate border-spacing-0">
+            <thead>
+              <tr>
+                <template x-for="col in columns" :key="col.key">
+                  <th class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-3 py-2.5 text-left">
+                    <button
+                      type="button"
+                      x-on:click="toggleSort(col)"
+                      class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-800 whitespace-nowrap"
+                    >
+                      <span x-text="col.label"></span>
+                      <ChevronsUpDown size={12} x-show="sortKey !== col.key" class="text-slate-300" />
+                      <ArrowUp size={12} x-show="sortKey === col.key && sortDir === 'asc'" />
+                      <ArrowDown size={12} x-show="sortKey === col.key && sortDir === 'desc'" />
+                    </button>
+                  </th>
+                </template>
+                <th class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-dotted divide-slate-300">
+              <template x-for="pc in filtered" :key="pc.id">
+                <tr class="hover:bg-slate-50">
+                  <template x-for="col in columns" :key="col.key">
+                    <td
+                      class="px-3 py-2.5 text-slate-700"
+                      :class="col.wrap ? 'max-w-[220px] truncate' : 'whitespace-nowrap'"
+                      :title="col.wrap ? cellText(col, pc) : null"
+                    >
+                      <template x-if="col.badge">
+                        <span
+                          class="text-xs rounded-full px-2 py-0.5 font-semibold"
+                          :class="col.badge === 'status' ? statusBadgeClass(pc[col.key]) : performanceBadgeClass(pc[col.key])"
+                          x-text="pc[col.key]"
+                        ></span>
+                      </template>
+                      <template x-if="!col.badge">
+                        <span x-text="cellText(col, pc)"></span>
+                      </template>
+                    </td>
+                  </template>
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center justify-end gap-3 whitespace-nowrap">
+                      <button type="button" x-on:click="toggleStatus(pc)" class="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                        <RotateCw size={12} />
+                        <span x-text="pc.status === 'Active' ? 'Retire' : 'Reactivate'"></span>
+                      </button>
+                      <button type="button" x-on:click="openEdit(pc)" class="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900">
+                        <Pencil size={12} />
+                        Edit
+                      </button>
+                      <button type="button" x-on:click="remove(pc)" class="flex items-center gap-1 text-xs font-medium text-rose-600 hover:text-rose-800">
+                        <Trash2 size={12} />
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </main>
+
+    <!-- Add / Edit modal -->
+    <div
+      x-show="modalOpen"
+      x-cloak
+      class="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-20"
+      x-on:keydown.escape.window="closeModal()"
+    >
+      <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" x-on:click.outside="closeModal()">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-slate-900" x-text="form.id ? 'Edit PC' : 'Add New PC'"></h2>
+          <button type="button" x-on:click="closeModal()" class="text-slate-400 hover:text-slate-700">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form class="mt-4 flex flex-col gap-4" x-on:submit.prevent="save()">
+          <div class="grid grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Asset Tag *</span>
+              <input type="text" x-model="form.asset_tag" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">PC Name *</span>
+              <input type="text" x-model="form.name" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Brand</span>
+              <input type="text" x-model="form.brand" placeholder="e.g. Dell, HP, Lenovo" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Machine Type</span>
+              <select x-model="form.machine_type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="Desktop">Desktop</option>
+                <option value="Laptop">Laptop</option>
+                <option value="AIO">AIO</option>
+              </select>
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Condition</span>
+              <select x-model="form.condition_status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="New">New</option>
+                <option value="Refurbished">Refurbished</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-4 gap-4">
+            <label class="flex flex-col gap-1 col-span-2">
+              <span class="text-xs font-medium text-slate-500">CPU</span>
+              <input type="text" x-model="form.cpu" placeholder="e.g. Intel i5-13400" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">RAM (GB)</span>
+              <input type="number" min="0" x-model="form.ram_gb" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">OS</span>
+              <select x-model="form.os" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="Windows 10">Windows 10</option>
+                <option value="Windows 11">Windows 11</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Storage Type</span>
+              <select x-model="form.storage_type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="">—</option>
+                <option value="SSD">SSD</option>
+                <option value="HDD">HDD</option>
+              </select>
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Storage Capacity</span>
+              <input type="text" x-model="form.storage_capacity" placeholder="e.g. 256GB, 1TB" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+          </div>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-500">Location *</span>
+            <input type="text" x-model="form.location" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          </label>
+
+          <div class="grid grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Extension Number</span>
+              <input type="text" x-model="form.extension_number" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">TeamViewer ID</span>
+              <input type="text" x-model="form.teamviewer_id" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Status</span>
+              <select x-model="form.status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="Active">Active</option>
+                <option value="Retired">Retired</option>
+              </select>
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Performance</span>
+              <select x-model="form.performance" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="Slow">Slow</option>
+                <option value="Average">Average</option>
+                <option value="Good">Good</option>
+                <option value="Excellent">Excellent</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-500">Softwares Installed</span>
+            <textarea x-model="form.softwares" rows="2" placeholder="Comma separated, e.g. Office 365, Google Chrome, Adobe Reader" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+          </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-500">Users</span>
+            <input type="text" x-model="form.assigned_users" placeholder="Comma separated if shared" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-slate-500">Comments</span>
+            <textarea x-model="form.comments" rows="2" placeholder="Anyone can leave a note about this PC" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+          </label>
+
+          <p class="text-sm text-rose-600" x-show="formError" x-text="formError"></p>
+
+          <div class="flex items-center justify-end gap-3 mt-2">
+            <button type="button" x-on:click="closeModal()" class="text-sm font-medium text-slate-500 hover:text-slate-800">Cancel</button>
+            <button type="submit" :disabled="saving" class="flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold px-4 py-2 hover:bg-indigo-700 disabled:opacity-60">
+              <Check size={15} x-show="!saving" />
+              <span x-show="!saving">Save</span>
+              <span x-show="saving">Saving...</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="pcs-data" set:html={JSON.stringify(pcs)} />
+
+  <script>
+    import Alpine from 'alpinejs';
+    import adminApp from '../../scripts/adminApp.js';
+
+    window.adminApp = adminApp;
+    window.Alpine = Alpine;
+    Alpine.start();
+  </script>
+</Layout>
+
+<style>
+  [x-cloak] {
+    display: none !important;
+  }
+</style>
