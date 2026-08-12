@@ -31,6 +31,36 @@ const COLUMNS = [
   { key: 'comments', label: 'Comments', render: (pc) => pc.comments || '—', wrap: true },
 ];
 
+function parseSystemInfo(text) {
+  const get = (label) => {
+    const match = text.match(new RegExp(`^${label}:\\s*(.*)$`, 'im'));
+    return match ? match[1].trim() : '';
+  };
+
+  const result = {};
+
+  const hostName = get('Host Name');
+  if (hostName) result.name = hostName;
+
+  const manufacturer = get('System Manufacturer');
+  if (manufacturer && !/unknown|to be filled/i.test(manufacturer)) result.brand = manufacturer;
+
+  const osName = get('OS Name');
+  if (/windows\s*11/i.test(osName)) result.os = 'Windows 11';
+  else if (/windows\s*10/i.test(osName)) result.os = 'Windows 10';
+
+  const cpuMatch = text.match(/^\s*\[01\]:\s*(.+)$/im);
+  if (cpuMatch) result.cpu = cpuMatch[1].trim();
+
+  const memMatch = text.match(/Total Physical Memory:\s*([\d,]+)\s*MB/i);
+  if (memMatch) {
+    const mb = Number(memMatch[1].replace(/,/g, ''));
+    if (Number.isFinite(mb) && mb > 0) result.ram_gb = Math.round(mb / 1024);
+  }
+
+  return result;
+}
+
 const emptyForm = () => ({
   id: null,
   asset_tag: '',
@@ -66,6 +96,8 @@ export default function adminApp() {
     form: emptyForm(),
     importing: false,
     importResult: null,
+    systemInfoText: '',
+    systemInfoApplied: null,
 
     init() {
       const raw = document.getElementById('pcs-data')?.textContent ?? '[]';
@@ -126,17 +158,53 @@ export default function adminApp() {
     openCreate() {
       this.form = emptyForm();
       this.formError = '';
+      this.systemInfoText = '';
+      this.systemInfoApplied = null;
       this.modalOpen = true;
     },
 
     openEdit(pc) {
       this.form = { ...emptyForm(), ...pc };
       this.formError = '';
+      this.systemInfoText = '';
+      this.systemInfoApplied = null;
       this.modalOpen = true;
     },
 
     closeModal() {
       this.modalOpen = false;
+    },
+
+    applySystemInfo() {
+      if (!this.systemInfoText.trim()) return;
+
+      const parsed = parseSystemInfo(this.systemInfoText);
+      const filled = [];
+
+      if (parsed.name) {
+        this.form.name = parsed.name;
+        filled.push('Name');
+      }
+      if (parsed.brand) {
+        this.form.brand = parsed.brand;
+        filled.push('Brand');
+      }
+      if (parsed.cpu) {
+        this.form.cpu = parsed.cpu;
+        filled.push('CPU');
+      }
+      if (parsed.ram_gb) {
+        this.form.ram_gb = parsed.ram_gb;
+        filled.push('RAM');
+      }
+      if (parsed.os) {
+        this.form.os = parsed.os;
+        filled.push('OS');
+      }
+
+      this.systemInfoApplied = filled.length
+        ? `Filled: ${filled.join(', ')}.`
+        : 'No recognizable fields found in the pasted text.';
     },
 
     buildPayload() {

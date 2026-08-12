@@ -19,6 +19,7 @@ import {
   ChevronsUpDown,
   Download,
   Upload,
+  WandSparkles,
 } from '@lucide/astro';
 
 const [rows] = await db.query('SELECT * FROM pcs ORDER BY name ASC');
@@ -212,6 +213,29 @@ const pcs = rows as Pc[];
         </div>
 
         <form class="mt-4 flex flex-col gap-4" x-on:submit.prevent="save()">
+          <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 flex flex-col gap-2">
+            <span class="text-xs font-medium text-slate-500">
+              Paste the output of the Windows <code>systeminfo</code> command to auto-fill Name, Brand, CPU, RAM and OS
+            </span>
+            <textarea
+              x-model="systemInfoText"
+              rows="3"
+              placeholder="Host Name:                 DESKTOP-AB12CD3&#10;OS Name:                   Microsoft Windows 11 Pro&#10;..."
+              class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
+            ></textarea>
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs" :class="systemInfoApplied?.startsWith('No') ? 'text-amber-600' : 'text-emerald-600'" x-show="systemInfoApplied" x-text="systemInfoApplied"></p>
+              <button
+                type="button"
+                x-on:click="applySystemInfo()"
+                class="ml-auto shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold px-3 py-1.5 hover:bg-slate-100"
+              >
+                <WandSparkles size={13} />
+                Parse &amp; Fill
+              </button>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 gap-4">
             <label class="flex flex-col gap-1">
               <span class="text-xs font-medium text-slate-500">Asset Tag *</span>
