@@ -1,5 +1,5 @@
 ---
-import { MousePointerClick, MonitorCog, ScreenShare, Building2, AppWindow, Cpu, MemoryStick, HardDrive, Gauge } from '@lucide/astro';
+import { MousePointerClick, MonitorCog, ScreenShare, Building2, AppWindow, Cpu, MemoryStick, HardDrive, Gauge, Network } from '@lucide/astro';
 ---
 
 <aside class="w-96 shrink-0 border-l border-slate-200 bg-white overflow-y-auto">
@@ -47,6 +47,21 @@ import { MousePointerClick, MonitorCog, ScreenShare, Building2, AppWindow, Cpu, 
 
         <div class="flex items-center justify-between py-2.5">
           <span class="flex items-center gap-2 text-xs text-slate-500">
+            <Network size={14} class="text-slate-400" />
+            IP Address
+          </span>
+          <span class="flex items-center gap-2">
+            <span
+              class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600"
+              x-show="selected.ip_config"
+              x-text="selected.ip_config"
+            ></span>
+            <span class="text-base font-semibold text-slate-900 font-mono" x-text="selected.ip_address || '—'"></span>
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5">
+          <span class="flex items-center gap-2 text-xs text-slate-500">
             <Building2 size={14} class="text-slate-400" />
             Brand
           </span>
@@ -58,7 +73,10 @@ import { MousePointerClick, MonitorCog, ScreenShare, Building2, AppWindow, Cpu, 
             <AppWindow size={14} class="text-slate-400" />
             Operating System
           </span>
-          <span class="text-base font-semibold text-slate-900" x-text="selected.os"></span>
+          <span
+            class="text-base font-semibold text-slate-900"
+            x-text="selected.os + (selected.os_edition ? ' ' + selected.os_edition : '')"
+          ></span>
         </div>
 
         <div class="flex items-center justify-between py-2.5">

@@ -14,4 +14,6 @@ Apply a migration with:
 mysql -h <MYSQL_HOSTNAME> -P <MYSQL_PORT> -u <MYSQL_USERNAME> -p pcmgmt < db/migrations/0001_....sql
 ```
 
-No migrations yet.
+- `0001_add_os_edition_and_network.sql` — adds `os_edition`, `ip_address`, `ip_config`.
+- `0002_add_last_reported_at.sql` — adds `last_reported_at`, set by the agent API.
+- `0003_add_machine_id.sql` — adds the unique `machine_id` the agent API matches on.

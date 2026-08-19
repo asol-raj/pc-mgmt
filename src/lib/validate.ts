@@ -1,11 +1,22 @@
 import type { PcInput } from './types';
 
-const MACHINE_TYPE_VALUES = ['Desktop', 'Laptop', 'AIO'];
-const STORAGE_TYPE_VALUES = ['SSD', 'HDD'];
-const OS_VALUES = ['Windows 10', 'Windows 11'];
-const CONDITION_VALUES = ['New', 'Refurbished'];
-const PERFORMANCE_VALUES = ['Slow', 'Average', 'Good', 'Excellent'];
-const STATUS_VALUES = ['Active', 'Retired'];
+export const MACHINE_TYPE_VALUES = ['Desktop', 'Laptop', 'AIO'];
+export const STORAGE_TYPE_VALUES = ['SSD', 'HDD'];
+export const OS_VALUES = ['Windows 10', 'Windows 11'];
+export const OS_EDITION_VALUES = ['Home', 'Pro', 'Enterprise', 'Education'];
+export const IP_CONFIG_VALUES = ['Static', 'Dynamic'];
+
+// IPv4 dotted quad, or anything that looks like an IPv6 address.
+const IPV4_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+const IPV6_RE = /^[0-9a-f:]+$/i;
+
+export const CONDITION_VALUES = ['New', 'Refurbished'];
+export const PERFORMANCE_VALUES = ['Slow', 'Average', 'Good', 'Excellent'];
+export const STATUS_VALUES = ['Active', 'Retired'];
+
+export function isValidIpAddress(value: string): boolean {
+  return IPV4_RE.test(value) || (value.includes(':') && IPV6_RE.test(value));
+}
 
 export function validatePcInput(body: any): { data?: PcInput; error?: string } {
   if (!body || typeof body !== 'object') return { error: 'Invalid request body' };
@@ -26,6 +37,28 @@ export function validatePcInput(body: any): { data?: PcInput; error?: string } {
     return { error: `performance must be one of ${PERFORMANCE_VALUES.join(', ')}` };
   if (!STATUS_VALUES.includes(body.status))
     return { error: `status must be one of ${STATUS_VALUES.join(', ')}` };
+
+  let os_edition = null;
+  if (body.os_edition) {
+    if (!OS_EDITION_VALUES.includes(body.os_edition))
+      return { error: `os_edition must be one of ${OS_EDITION_VALUES.join(', ')}` };
+    os_edition = body.os_edition;
+  }
+
+  let ip_config = null;
+  if (body.ip_config) {
+    if (!IP_CONFIG_VALUES.includes(body.ip_config))
+      return { error: `ip_config must be one of ${IP_CONFIG_VALUES.join(', ')}` };
+    ip_config = body.ip_config;
+  }
+
+  let ip_address = null;
+  if (body.ip_address != null && String(body.ip_address).trim() !== '') {
+    ip_address = String(body.ip_address).trim();
+    if (!isValidIpAddress(ip_address)) {
+      return { error: 'ip_address must be a valid IPv4 or IPv6 address' };
+    }
+  }
 
   let storage_type = null;
   if (body.storage_type) {
@@ -50,10 +83,13 @@ export function validatePcInput(body: any): { data?: PcInput; error?: string } {
       storage_type,
       storage_capacity: body.storage_capacity ? String(body.storage_capacity).trim() : null,
       os: body.os,
+      os_edition,
       condition_status: body.condition_status,
       location,
       extension_number: body.extension_number ? String(body.extension_number).trim() : null,
       teamviewer_id: body.teamviewer_id ? String(body.teamviewer_id).trim() : null,
+      ip_address,
+      ip_config,
       status: body.status,
       performance: body.performance,
       softwares: body.softwares ? String(body.softwares).trim() : null,

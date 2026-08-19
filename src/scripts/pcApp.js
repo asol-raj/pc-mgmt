@@ -30,10 +30,25 @@ const COLUMNS = [
     sortValue: (pc) => pc.storage_capacity || '',
   },
   { key: 'os', label: 'OS', type: 'select', options: ['Windows 10', 'Windows 11'] },
+  {
+    key: 'os_edition',
+    label: 'Edition',
+    type: 'select',
+    options: ['Home', 'Pro', 'Enterprise', 'Education'],
+    render: (pc) => pc.os_edition || '—',
+  },
   { key: 'condition_status', label: 'Condition', type: 'select', options: ['New', 'Refurbished'] },
   { key: 'location', label: 'Location', type: 'text' },
   { key: 'extension_number', label: 'Ext.', type: 'text', render: (pc) => pc.extension_number || '—' },
   { key: 'teamviewer_id', label: 'TeamViewer ID', type: 'text', render: (pc) => pc.teamviewer_id || '—' },
+  { key: 'ip_address', label: 'IP Address', type: 'text', render: (pc) => pc.ip_address || '—' },
+  {
+    key: 'ip_config',
+    label: 'IP Config',
+    type: 'select',
+    options: ['Static', 'Dynamic'],
+    render: (pc) => pc.ip_config || '—',
+  },
   { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Retired'], badge: 'status' },
   {
     key: 'performance',
@@ -90,7 +105,7 @@ export default function pcApp() {
     matchesSearch(pc) {
       const q = this.search.trim().toLowerCase();
       if (!q) return true;
-      return [pc.name, pc.asset_tag, pc.brand, pc.cpu, pc.location, pc.extension_number, pc.teamviewer_id]
+      return [pc.name, pc.asset_tag, pc.brand, pc.cpu, pc.location, pc.extension_number, pc.teamviewer_id, pc.ip_address]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     },

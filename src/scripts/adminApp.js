@@ -1,3 +1,11 @@
+import { parseSystemInfo } from '../lib/systeminfo.js';
+
+function formatReportedAt(value) {
+  if (!value) return 'Never';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Never' : date.toLocaleString();
+}
+
 function compareVal(a, b) {
   if (a == null && b == null) return 0;
   if (a == null) return -1;
@@ -20,46 +28,20 @@ const COLUMNS = [
     sortValue: (pc) => pc.storage_capacity || '',
   },
   { key: 'os', label: 'OS' },
+  { key: 'os_edition', label: 'Edition', render: (pc) => pc.os_edition || '—' },
   { key: 'condition_status', label: 'Condition' },
   { key: 'location', label: 'Location' },
   { key: 'extension_number', label: 'Ext.', render: (pc) => pc.extension_number || '—' },
   { key: 'teamviewer_id', label: 'TeamViewer ID', render: (pc) => pc.teamviewer_id || '—' },
+  { key: 'ip_address', label: 'IP Address', render: (pc) => pc.ip_address || '—' },
+  { key: 'ip_config', label: 'IP Config', render: (pc) => pc.ip_config || '—' },
   { key: 'status', label: 'Status', badge: 'status' },
   { key: 'performance', label: 'Performance', badge: 'performance' },
   { key: 'softwares', label: 'Softwares', render: (pc) => pc.softwares || '—', wrap: true },
   { key: 'assigned_users', label: 'Users', render: (pc) => pc.assigned_users || '—', wrap: true },
   { key: 'comments', label: 'Comments', render: (pc) => pc.comments || '—', wrap: true },
+  { key: 'last_reported_at', label: 'Last Agent Report', render: (pc) => formatReportedAt(pc.last_reported_at) },
 ];
-
-function parseSystemInfo(text) {
-  const get = (label) => {
-    const match = text.match(new RegExp(`^${label}:\\s*(.*)$`, 'im'));
-    return match ? match[1].trim() : '';
-  };
-
-  const result = {};
-
-  const hostName = get('Host Name');
-  if (hostName) result.name = hostName;
-
-  const manufacturer = get('System Manufacturer');
-  if (manufacturer && !/unknown|to be filled/i.test(manufacturer)) result.brand = manufacturer;
-
-  const osName = get('OS Name');
-  if (/windows\s*11/i.test(osName)) result.os = 'Windows 11';
-  else if (/windows\s*10/i.test(osName)) result.os = 'Windows 10';
-
-  const cpuMatch = text.match(/^\s*\[01\]:\s*(.+)$/im);
-  if (cpuMatch) result.cpu = cpuMatch[1].trim();
-
-  const memMatch = text.match(/Total Physical Memory:\s*([\d,]+)\s*MB/i);
-  if (memMatch) {
-    const mb = Number(memMatch[1].replace(/,/g, ''));
-    if (Number.isFinite(mb) && mb > 0) result.ram_gb = Math.round(mb / 1024);
-  }
-
-  return result;
-}
 
 const emptyForm = () => ({
   id: null,
@@ -72,10 +54,13 @@ const emptyForm = () => ({
   storage_type: '',
   storage_capacity: '',
   os: 'Windows 11',
+  os_edition: '',
   condition_status: 'New',
   location: '',
   extension_number: '',
   teamviewer_id: '',
+  ip_address: '',
+  ip_config: '',
   status: 'Active',
   performance: 'Good',
   softwares: '',
@@ -130,7 +115,8 @@ export default function adminApp() {
             p.name.toLowerCase().includes(q) ||
             p.asset_tag.toLowerCase().includes(q) ||
             p.location.toLowerCase().includes(q) ||
-            (p.brand ?? '').toLowerCase().includes(q)
+            (p.brand ?? '').toLowerCase().includes(q) ||
+            (p.ip_address ?? '').toLowerCase().includes(q)
         );
       }
       if (!this.sortKey) return rows;
@@ -201,6 +187,18 @@ export default function adminApp() {
         this.form.os = parsed.os;
         filled.push('OS');
       }
+      if (parsed.os_edition) {
+        this.form.os_edition = parsed.os_edition;
+        filled.push('Edition');
+      }
+      if (parsed.ip_address) {
+        this.form.ip_address = parsed.ip_address;
+        filled.push('IP Address');
+      }
+      if (parsed.ip_config) {
+        this.form.ip_config = parsed.ip_config;
+        filled.push('IP Config');
+      }
 
       this.systemInfoApplied = filled.length
         ? `Filled: ${filled.join(', ')}.`
@@ -218,10 +216,13 @@ export default function adminApp() {
         storage_type: this.form.storage_type || null,
         storage_capacity: this.form.storage_capacity.trim() || null,
         os: this.form.os,
+        os_edition: this.form.os_edition || null,
         condition_status: this.form.condition_status,
         location: this.form.location.trim(),
         extension_number: this.form.extension_number.trim() || null,
         teamviewer_id: this.form.teamviewer_id.trim() || null,
+        ip_address: this.form.ip_address.trim() || null,
+        ip_config: this.form.ip_config || null,
         status: this.form.status,
         performance: this.form.performance,
         softwares: this.form.softwares.trim() || null,

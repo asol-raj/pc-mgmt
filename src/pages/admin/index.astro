@@ -60,7 +60,7 @@ const pcs = rows as Pc[];
           <input
             type="text"
             x-model="search"
-            placeholder="Search by name, asset tag, brand, location..."
+            placeholder="Search by name, asset tag, brand, location, IP..."
             class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
         </div>
@@ -202,24 +202,24 @@ const pcs = rows as Pc[];
       x-show="modalOpen"
       x-cloak
       class="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-20"
-      x-on:keydown.escape.window="closeModal()"
     >
-      <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" x-on:click.outside="closeModal()">
+      <!-- Dismissed only via Cancel / the X button, so a stray click never discards a filled-in form. -->
+      <div class="bg-white rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto p-8">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-slate-900" x-text="form.id ? 'Edit PC' : 'Add New PC'"></h2>
+          <h2 class="text-xl font-bold text-slate-900" x-text="form.id ? 'Edit PC' : 'Add New PC'"></h2>
           <button type="button" x-on:click="closeModal()" class="text-slate-400 hover:text-slate-700">
             <X size={18} />
           </button>
         </div>
 
-        <form class="mt-4 flex flex-col gap-4" x-on:submit.prevent="save()">
+        <form class="mt-5 flex flex-col gap-5" x-on:submit.prevent="save()">
           <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 flex flex-col gap-2">
             <span class="text-xs font-medium text-slate-500">
-              Paste the output of the Windows <code>systeminfo</code> command to auto-fill Name, Brand, CPU, RAM and OS
+              Paste the output of the Windows <code>systeminfo</code> command to auto-fill Name, Brand, CPU, RAM, OS, Windows edition and IP details
             </span>
             <textarea
               x-model="systemInfoText"
-              rows="3"
+              rows="4"
               placeholder="Host Name:                 DESKTOP-AB12CD3&#10;OS Name:                   Microsoft Windows 11 Pro&#10;..."
               class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
             ></textarea>
@@ -279,15 +279,29 @@ const pcs = rows as Pc[];
               <input type="number" min="0" x-model="form.ram_gb" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </label>
             <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Storage Capacity</span>
+              <input type="text" x-model="form.storage_capacity" placeholder="e.g. 256GB, 1TB" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4">
+            <label class="flex flex-col gap-1">
               <span class="text-xs font-medium text-slate-500">OS</span>
               <select x-model="form.os" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
                 <option value="Windows 10">Windows 10</option>
                 <option value="Windows 11">Windows 11</option>
               </select>
             </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">Windows Edition</span>
+              <select x-model="form.os_edition" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="">—</option>
+                <option value="Home">Home</option>
+                <option value="Pro">Pro</option>
+                <option value="Enterprise">Enterprise</option>
+                <option value="Education">Education</option>
+              </select>
+            </label>
             <label class="flex flex-col gap-1">
               <span class="text-xs font-medium text-slate-500">Storage Type</span>
               <select x-model="form.storage_type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -296,10 +310,6 @@ const pcs = rows as Pc[];
                 <option value="HDD">HDD</option>
               </select>
             </label>
-            <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Storage Capacity</span>
-              <input type="text" x-model="form.storage_capacity" placeholder="e.g. 256GB, 1TB" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            </label>
           </div>
 
           <label class="flex flex-col gap-1">
@@ -307,7 +317,7 @@ const pcs = rows as Pc[];
             <input type="text" x-model="form.location" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           </label>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-4 gap-4">
             <label class="flex flex-col gap-1">
               <span class="text-xs font-medium text-slate-500">Extension Number</span>
               <input type="text" x-model="form.extension_number" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
@@ -315,6 +325,18 @@ const pcs = rows as Pc[];
             <label class="flex flex-col gap-1">
               <span class="text-xs font-medium text-slate-500">TeamViewer ID</span>
               <input type="text" x-model="form.teamviewer_id" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">IP Address</span>
+              <input type="text" x-model="form.ip_address" placeholder="e.g. 192.168.1.57" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono" />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-slate-500">IP Configuration</span>
+              <select x-model="form.ip_config" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="">—</option>
+                <option value="Static">Static</option>
+                <option value="Dynamic">Dynamic (DHCP)</option>
+              </select>
             </label>
           </div>
 
@@ -339,7 +361,7 @@ const pcs = rows as Pc[];
 
           <label class="flex flex-col gap-1">
             <span class="text-xs font-medium text-slate-500">Softwares Installed</span>
-            <textarea x-model="form.softwares" rows="2" placeholder="Comma separated, e.g. Office 365, Google Chrome, Adobe Reader" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+            <textarea x-model="form.softwares" rows="3" placeholder="Comma separated, e.g. Office 365, Google Chrome, Adobe Reader" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
           </label>
 
           <label class="flex flex-col gap-1">
@@ -349,7 +371,7 @@ const pcs = rows as Pc[];
 
           <label class="flex flex-col gap-1">
             <span class="text-xs font-medium text-slate-500">Comments</span>
-            <textarea x-model="form.comments" rows="2" placeholder="Anyone can leave a note about this PC" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+            <textarea x-model="form.comments" rows="3" placeholder="Anyone can leave a note about this PC" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
           </label>
 
           <p class="text-sm text-rose-600" x-show="formError" x-text="formError"></p>

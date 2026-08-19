@@ -106,7 +106,10 @@ Three-column layout:
 - `PUT /api/pcs/[id]` — admin-only, update a PC
 - `DELETE /api/pcs/[id]` — admin-only, delete a PC
 - `POST /api/auth/login` — verifies password, sets session cookie
-- Mutating routes and `/admin` are guarded by Astro middleware checking the session cookie
+- `POST /api/agent/report` — API-key auth, used by the .NET agent app installed on each
+  PC to self-report its specs; see `docs/agent-api.md`
+- Mutating routes and `/admin` are guarded by Astro middleware checking the session cookie;
+  `/api/agent/*` is guarded by the same middleware checking the `AGENT_API_KEY` instead
 
 ## 6. Project Structure (planned)
 
