@@ -22,12 +22,14 @@ const DETECTED_ENUMS: Record<string, string[]> = {
 // Column lengths from db/schema.sql — checked here so a too-long value comes
 // back as a clear 400 instead of a MySQL error.
 const DETECTED_STRINGS: Record<string, number> = {
+  name: 100,
   brand: 50,
   cpu: 100,
   storage_capacity: 20,
   ip_address: 45,
   teamviewer_id: 50,
   softwares: 4000,
+  assigned_users: 255,
 };
 
 export interface AgentReport {
@@ -40,16 +42,14 @@ export interface AgentReport {
   /** Identifies which row to update when no machine_id was reported. */
   asset_tag: string;
   /**
-   * Windows host name. Used to find the row, and as the display name when the PC
-   * is first registered — but never written again, since the admin renames PCs to
-   * friendly names like "Accounts Desk 3" and the agent must not undo that.
+   * Windows host name — both an identifier for matching and a detected field, since
+   * PCs get renamed in Windows to match desk extensions and the register follows.
    */
   name: string;
   /** Agent-owned fields, written on every report. */
   detected: Record<string, string | number>;
-  /** Only used when the PC is new to the register. */
+  /** Only used when the PC is new to the register — the agent never sends it. */
   location: string;
-  assigned_users: string | null;
 }
 
 function textValue(source: Record<string, any>, key: string): string {
@@ -91,6 +91,7 @@ export function buildAgentReport(body: any): { report?: AgentReport; error?: str
   if (name.length > 100) return { error: 'name must be 100 characters or fewer' };
 
   const detected: Record<string, string | number> = {};
+  if (name) detected.name = name;
 
   for (const [key, maxLength] of Object.entries(DETECTED_STRINGS)) {
     const value = textValue(source, key);
@@ -125,9 +126,6 @@ export function buildAgentReport(body: any): { report?: AgentReport; error?: str
   const location = textValue(source, 'location');
   if (location.length > 150) return { error: 'location must be 150 characters or fewer' };
 
-  const assigned_users = textValue(source, 'assigned_users');
-  if (assigned_users.length > 255) return { error: 'assigned_users must be 255 characters or fewer' };
-
   return {
     report: {
       machine_id,
@@ -135,7 +133,6 @@ export function buildAgentReport(body: any): { report?: AgentReport; error?: str
       name,
       detected,
       location,
-      assigned_users: assigned_users || null,
     },
   };
 }

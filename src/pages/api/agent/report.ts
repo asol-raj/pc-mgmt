@@ -42,7 +42,7 @@ export const POST: APIRoute = async ({ request }) => {
   const { report, error } = buildAgentReport(body);
   if (error || !report) return json({ error }, 400);
 
-  const { machine_id, asset_tag, name, detected, location, assigned_users } = report;
+  const { machine_id, asset_tag, name, detected, location } = report;
 
   try {
     // Find the row this machine already owns. machine_id is authoritative: it survives
@@ -138,7 +138,6 @@ export const POST: APIRoute = async ({ request }) => {
       last_reported_at: new Date(),
     };
     if (machine_id) record.machine_id = machine_id;
-    if (assigned_users) record.assigned_users = assigned_users;
 
     const [result]: any = await db.query('INSERT INTO pcs SET ?', [record]);
 

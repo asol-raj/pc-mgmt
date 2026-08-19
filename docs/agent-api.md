@@ -37,7 +37,7 @@ Windows host name).
 |---|---|---|
 | `machine_id` / `machine_guid` | string (≤100) | **Strongly recommended.** Stable per-machine id — see below. |
 | `asset_tag` | string (≤50) | Fallback identifier. If the app knows the tag, send it too. |
-| `name` / `host_name` | string (≤100) | Windows host name. Fallback identifier, and the display name when the PC is first registered. |
+| `name` / `host_name` | string (≤100) | Windows host name, e.g. `POS-101`. Both a fallback identifier and a detected field — the register follows renames made in Windows. |
 | `brand` | string (≤50) | e.g. `Dell Inc.` |
 | `machine_type` | enum | `Desktop` \| `Laptop` \| `AIO` |
 | `cpu` | string (≤100) | |
@@ -50,8 +50,8 @@ Windows host name).
 | `ip_config` | enum | `Static` \| `Dynamic` |
 | `teamviewer_id` | string (≤50) | |
 | `softwares` | string (≤4000) | Comma-separated list of installed software |
-| `location` | string (≤150) | **Only used when the PC is new** — see below |
-| `assigned_users` | string (≤255) | **Only used when the PC is new** |
+| `location` | string (≤150) | **Only used when the PC is new** — the agent does not send it |
+| `assigned_users` | string (≤255) | Comma-separated local Windows accounts that can sign in, e.g. `cfc, jatin, raj` |
 | `systeminfo` | string | Raw stdout of the Windows `systeminfo` command — see below |
 
 ### Shortcut: post the raw `systeminfo` output
@@ -80,10 +80,10 @@ var machineId = (string?)key?.GetValue("MachineGuid");
 The column is `UNIQUE` in the database, so a second row for the same machine is
 impossible even if two reports arrive at the same instant.
 
-Why it matters: the admin renames PCs in the dashboard — `DESKTOP-AB12CD3` becomes
-`Accounts Desk 3`, and its tag becomes `PC-042`. An agent reporting only its host name
-would then match nothing and register the machine a second time. With `machine_id` the
-row is found regardless of what it has been renamed to.
+Why it matters: a PC gets renamed — in Windows to match a desk extension, or its
+`asset_tag` changed in the dashboard. An agent reporting only its old host name would
+then match nothing and register the machine a second time. With `machine_id` the row
+is found regardless of what the machine or the admin has renamed.
 
 If the app has already been rolled out without one, adding it later is safe: the first
 report that carries a `machine_id` links it to the row matched by tag or host name, and
@@ -105,15 +105,24 @@ during the initial rollout.
 
 A report **overwrites** the machine-detected fields listed above on every call.
 
+That includes `name` and `assigned_users`. These offices rename PCs in Windows to
+match desk extension numbers, and local accounts are created and removed as staff
+change, so both need to track the machine the same way `ip_address` does. A rename
+still cannot produce a duplicate row, because matching runs on `machine_id` first.
+
 A report **never touches** the fields the office admin curates in the dashboard:
-`name`, `location`, `extension_number`, `status`, `performance`, `condition_status`,
-`assigned_users`, `comments`, and `asset_tag`. Sending them on a report for an
-existing PC is harmless — they are ignored. (`name`, `location` and `assigned_users`
-are used only when the PC is being created for the first time, so an admin renaming
-a PC to a friendly name is never undone by the next report.)
+`asset_tag`, `location`, `extension_number`, `status`, `performance`,
+`condition_status`, and `comments`. Sending them on a report for an existing PC is
+harmless — they are ignored. `asset_tag` in particular is the one stable human label
+the admin owns, and no report ever writes it.
+
+`location` is the exception that is read at creation time only (defaulting to
+`Unassigned`), since the agent does not report it at all.
 
 Fields that have not changed are not written at all: an unchanged report answers
-`{"status":"unchanged","updated_fields":[]}` and only bumps `last_reported_at`.
+`{"status":"unchanged","updated_fields":[]}` and only bumps `last_reported_at`. A
+changed `name` or `assigned_users` shows up in `updated_fields` like any other
+detected field.
 
 ## Creating vs updating
 
@@ -125,7 +134,7 @@ The machine is matched in this order:
    If that row already belongs to a *different* `machine_id`, the call returns `409`
    rather than overwriting one machine's record with another's.
 3. Otherwise `name` matches exactly one PC → same as step 2. (A name match on a row
-   owned by another `machine_id` is skipped — that is just two PCs sharing a display
+   owned by another `machine_id` is skipped — that is just two PCs sharing a host
    name, so this machine gets its own row.)
 4. Otherwise a new PC is registered, with:
    - `asset_tag` = the tag sent, or the host name if none was sent

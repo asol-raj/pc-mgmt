@@ -34,7 +34,7 @@ see a given PC's key details in a clear, large-font "vitals" panel.
 |---|---|---|
 | `id` | INT PK AUTO_INCREMENT | |
 | `asset_tag` | VARCHAR, unique | Human-friendly ID, e.g. `PC-014` |
-| `name` | VARCHAR | Display name, e.g. "Reception Desk PC" |
+| `name` | VARCHAR | Windows host name, e.g. `POS-101`; kept in sync by the agent API |
 | `location` | VARCHAR | e.g. "2nd Floor - Accounts" |
 | `extension_number` | VARCHAR | Phone extension at that desk |
 | `teamviewer_id` | VARCHAR | TeamViewer ID installed on that PC |
