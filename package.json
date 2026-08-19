@@ -9,7 +9,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "start": "node ./dist/server/entry.mjs",
+    "start": "node ./server.mjs",
+    "migrate": "node ./scripts/migrate.mjs",
     "astro": "astro"
   },
   "dependencies": {

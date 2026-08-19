@@ -2,7 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'pc-mgmt:7100',
-      script: './dist/server/entry.mjs',
+      // server.mjs runs pending migrations first, then starts ./dist/server/entry.mjs
+      script: './server.mjs',
       cwd: __dirname,
       exec_mode: 'fork',
       instances: 1,
