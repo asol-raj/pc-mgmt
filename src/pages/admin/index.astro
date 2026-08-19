@@ -205,7 +205,16 @@ const pcs = rows as Pc[];
                           x-text="pc[col.key]"
                         ></span>
                       </template>
-                      <template x-if="!isEditing(pc, col) && !col.badge">
+                      <template x-if="!isEditing(pc, col) && !col.badge && col.key === 'name'">
+                        <button
+                          type="button"
+                          x-on:click.stop="openDetails(pc)"
+                          class="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline text-left"
+                          title="Show all details"
+                          x-text="pc.name"
+                        ></button>
+                      </template>
+                      <template x-if="!isEditing(pc, col) && !col.badge && col.key !== 'name'">
                         <span
                           :class="editableField(col) ? 'border-b border-dotted border-slate-300 hover:border-indigo-500' : ''"
                           x-text="cellText(col, pc)"
@@ -236,6 +245,58 @@ const pcs = rows as Pc[];
         </div>
       </template>
     </main>
+
+    <!-- Full record for one PC, opened from the PC name in the table -->
+    <template x-if="detailPc">
+      <div
+        class="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-30"
+        x-on:keydown.escape.window="closeDetails()"
+      >
+        <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col" x-on:click.outside="closeDetails()">
+          <div class="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900" x-text="detailPc.name"></h2>
+              <p class="text-xs text-slate-500 font-mono mt-0.5" x-text="detailPc.asset_tag"></p>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                x-on:click="const pc = detailPc; closeDetails(); openEdit(pc)"
+                class="flex items-center gap-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold px-3 py-1.5 hover:bg-slate-50"
+              >
+                <Pencil size={13} />
+                Edit
+              </button>
+              <button type="button" x-on:click="closeDetails()" class="text-slate-400 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-y-auto px-6 py-2">
+            <template x-for="field in detailFields" :key="field.key">
+              <div class="flex items-start justify-between gap-6 py-2.5 border-b border-slate-100 last:border-0">
+                <span class="text-xs font-medium text-slate-500 w-44 shrink-0 pt-0.5" x-text="field.label"></span>
+
+                <template x-if="field.badge">
+                  <span
+                    class="rounded-full px-2.5 py-0.5 text-xs font-semibold shrink-0"
+                    :class="field.badge === 'status' ? statusBadgeClass(detailPc.status) : performanceBadgeClass(detailPc.performance)"
+                    x-text="detailValue(field, detailPc)"
+                  ></span>
+                </template>
+                <template x-if="!field.badge">
+                  <span
+                    class="text-sm font-medium text-slate-900 text-right break-words min-w-0"
+                    x-text="detailValue(field, detailPc)"
+                  ></span>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <!-- Inline edit failed: the row kept its old value -->
     <div

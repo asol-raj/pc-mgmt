@@ -1,10 +1,5 @@
 import { parseSystemInfo } from '../lib/systeminfo.js';
-
-function formatReportedAt(value) {
-  if (!value) return 'Never';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Never' : date.toLocaleString();
-}
+import { DETAIL_FIELDS, detailValue, formatDateTime } from '../lib/pcDetails.js';
 
 function compareVal(a, b) {
   if (a == null && b == null) return 0;
@@ -40,7 +35,7 @@ const COLUMNS = [
   { key: 'softwares', label: 'Softwares', render: (pc) => pc.softwares || '—', wrap: true },
   { key: 'assigned_users', label: 'Users', render: (pc) => pc.assigned_users || '—', wrap: true },
   { key: 'comments', label: 'Comments', render: (pc) => pc.comments || '—', wrap: true },
-  { key: 'last_reported_at', label: 'Last Agent Report', render: (pc) => formatReportedAt(pc.last_reported_at) },
+  { key: 'last_reported_at', label: 'Last Agent Report', render: (pc) => formatDateTime(pc.last_reported_at, 'Never') },
 ];
 
 // Rows come from MySQL, so every nullable column arrives as null. Everything that
@@ -129,6 +124,8 @@ export default function adminApp() {
     importResult: null,
     systemInfoText: '',
     systemInfoApplied: null,
+    detailFields: DETAIL_FIELDS,
+    detailPc: null,
     editing: null,
     editValue: '',
     editInvalid: false,
@@ -310,6 +307,20 @@ export default function adminApp() {
       } else {
         alert('Failed to delete this PC.');
       }
+    },
+
+    // Clicking the PC name shows the whole record, including the columns the
+    // table has no room for.
+    openDetails(pc) {
+      this.detailPc = pc;
+    },
+
+    closeDetails() {
+      this.detailPc = null;
+    },
+
+    detailValue(field, pc) {
+      return detailValue(field, pc);
     },
 
     editableField(col) {
