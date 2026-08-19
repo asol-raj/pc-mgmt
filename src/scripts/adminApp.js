@@ -43,6 +43,52 @@ const COLUMNS = [
   { key: 'last_reported_at', label: 'Last Agent Report', render: (pc) => formatReportedAt(pc.last_reported_at) },
 ];
 
+// Rows come from MySQL, so every nullable column arrives as null. Everything that
+// builds a payload goes through here, otherwise .trim() on a null throws and the
+// save dies before it reaches the network.
+const text = (value) => String(value ?? '').trim();
+
+/** The API takes the whole record on PUT, so an inline edit sends the row plus its one change. */
+function payloadFrom(source, overrides = {}) {
+  const pc = { ...source, ...overrides };
+  return {
+    asset_tag: text(pc.asset_tag),
+    name: text(pc.name),
+    brand: text(pc.brand) || null,
+    machine_type: pc.machine_type,
+    cpu: text(pc.cpu) || null,
+    ram_gb: pc.ram_gb === '' || pc.ram_gb == null ? null : Number(pc.ram_gb),
+    storage_type: pc.storage_type || null,
+    storage_capacity: text(pc.storage_capacity) || null,
+    os: pc.os,
+    os_edition: pc.os_edition || null,
+    condition_status: pc.condition_status,
+    location: text(pc.location),
+    extension_number: text(pc.extension_number) || null,
+    teamviewer_id: text(pc.teamviewer_id) || null,
+    ip_address: text(pc.ip_address) || null,
+    ip_config: pc.ip_config || null,
+    status: pc.status,
+    performance: pc.performance,
+    softwares: text(pc.softwares) || null,
+    assigned_users: text(pc.assigned_users) || null,
+    comments: text(pc.comments) || null,
+  };
+}
+
+// Columns an admin can edit straight from the table. name, cpu, ram, storage, OS,
+// IP and softwares are left out on purpose: the agent app overwrites those on its
+// next report, so editing them here would not stick.
+const EDITABLE_FIELDS = {
+  asset_tag: { type: 'text', required: true },
+  condition_status: { type: 'select', options: ['New', 'Refurbished'] },
+  location: { type: 'text', required: true },
+  extension_number: { type: 'text' },
+  status: { type: 'select', options: ['Active', 'Retired'] },
+  performance: { type: 'select', options: ['Slow', 'Average', 'Good', 'Excellent'] },
+  comments: { type: 'text' },
+};
+
 const emptyForm = () => ({
   id: null,
   asset_tag: '',
@@ -83,6 +129,10 @@ export default function adminApp() {
     importResult: null,
     systemInfoText: '',
     systemInfoApplied: null,
+    editing: null,
+    editValue: '',
+    editInvalid: false,
+    toast: null,
 
     init() {
       const raw = document.getElementById('pcs-data')?.textContent ?? '[]';
@@ -150,7 +200,12 @@ export default function adminApp() {
     },
 
     openEdit(pc) {
-      this.form = { ...emptyForm(), ...pc };
+      const blank = emptyForm();
+      // Keep the blank string defaults wherever the row holds null.
+      const filled = Object.fromEntries(
+        Object.entries(pc).map(([key, value]) => [key, value === null || value === undefined ? blank[key] ?? '' : value])
+      );
+      this.form = { ...blank, ...filled };
       this.formError = '';
       this.systemInfoText = '';
       this.systemInfoApplied = null;
@@ -206,29 +261,7 @@ export default function adminApp() {
     },
 
     buildPayload() {
-      return {
-        asset_tag: this.form.asset_tag.trim(),
-        name: this.form.name.trim(),
-        brand: this.form.brand.trim() || null,
-        machine_type: this.form.machine_type,
-        cpu: this.form.cpu.trim() || null,
-        ram_gb: this.form.ram_gb === '' ? null : Number(this.form.ram_gb),
-        storage_type: this.form.storage_type || null,
-        storage_capacity: this.form.storage_capacity.trim() || null,
-        os: this.form.os,
-        os_edition: this.form.os_edition || null,
-        condition_status: this.form.condition_status,
-        location: this.form.location.trim(),
-        extension_number: this.form.extension_number.trim() || null,
-        teamviewer_id: this.form.teamviewer_id.trim() || null,
-        ip_address: this.form.ip_address.trim() || null,
-        ip_config: this.form.ip_config || null,
-        status: this.form.status,
-        performance: this.form.performance,
-        softwares: this.form.softwares.trim() || null,
-        assigned_users: this.form.assigned_users.trim() || null,
-        comments: this.form.comments.trim() || null,
-      };
+      return payloadFrom(this.form);
     },
 
     async save() {
@@ -279,12 +312,78 @@ export default function adminApp() {
       }
     },
 
+    editableField(col) {
+      return EDITABLE_FIELDS[col.key] ?? null;
+    },
+
+    isEditing(pc, col) {
+      return Boolean(this.editing) && this.editing.id === pc.id && this.editing.key === col.key;
+    },
+
+    startEdit(pc, col) {
+      if (!this.editableField(col) || this.isEditing(pc, col)) return;
+      this.editing = { id: pc.id, key: col.key };
+      this.editValue = pc[col.key] ?? '';
+      this.editInvalid = false;
+    },
+
+    cancelEdit() {
+      this.editing = null;
+      this.editInvalid = false;
+    },
+
+    /**
+     * Enter (or leaving the cell) writes the value. A required field left blank is
+     * refused: on Enter the input turns red and stays open, on blur the cell simply
+     * reverts, so the stored value is never replaced with nothing.
+     */
+    async commitEdit(pc, col, viaBlur = false) {
+      if (!this.isEditing(pc, col)) return; // blur after Enter would otherwise fire twice
+      const field = this.editableField(col);
+      const value = text(this.editValue);
+
+      if (field.required && !value) {
+        if (viaBlur) this.cancelEdit();
+        else this.editInvalid = true;
+        return;
+      }
+
+      const previous = pc[col.key] ?? '';
+      if (value === String(previous)) {
+        this.cancelEdit();
+        return;
+      }
+
+      const next = field.required || field.type === 'select' ? value : value || null;
+      this.cancelEdit();
+
+      const res = await fetch(`/api/pcs/${pc.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadFrom(pc, { [col.key]: next })),
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        const data = res ? await res.json().catch(() => ({})) : {};
+        // The row keeps the value it already had.
+        this.showToast(data.error || 'Could not save that change.');
+        return;
+      }
+
+      pc[col.key] = next;
+    },
+
+    showToast(message) {
+      this.toast = message;
+      clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => {
+        this.toast = null;
+      }, 5000);
+    },
+
     async toggleStatus(pc) {
       const nextStatus = pc.status === 'Active' ? 'Retired' : 'Active';
-      const payload = { ...pc, status: nextStatus };
-      delete payload.id;
-      delete payload.created_at;
-      delete payload.updated_at;
+      const payload = payloadFrom(pc, { status: nextStatus });
 
       const res = await fetch(`/api/pcs/${pc.id}`, {
         method: 'PUT',
