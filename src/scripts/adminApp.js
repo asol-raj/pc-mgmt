@@ -124,6 +124,7 @@ export default function adminApp() {
     importResult: null,
     systemInfoText: '',
     systemInfoApplied: null,
+    selectedId: null,
     detailFields: DETAIL_FIELDS,
     detailPc: null,
     editing: null,
@@ -134,6 +135,17 @@ export default function adminApp() {
     init() {
       const raw = document.getElementById('pcs-data')?.textContent ?? '[]';
       this.pcs = JSON.parse(raw);
+      if (this.pcs.length) this.selectedId = this.pcs[0].id;
+    },
+
+    // Drives the vitals panel, so the fields off the right edge of the table
+    // are readable without scrolling.
+    get selected() {
+      return this.pcs.find((p) => p.id === this.selectedId) ?? null;
+    },
+
+    select(id) {
+      this.selectedId = id;
     },
 
     cellText(col, pc) {
@@ -304,6 +316,7 @@ export default function adminApp() {
       const res = await fetch(`/api/pcs/${pc.id}`, { method: 'DELETE' });
       if (res.ok) {
         this.pcs = this.pcs.filter((p) => p.id !== pc.id);
+        if (this.selectedId === pc.id) this.selectedId = this.pcs[0]?.id ?? null;
       } else {
         alert('Failed to delete this PC.');
       }
