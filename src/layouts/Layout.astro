@@ -12,7 +12,20 @@ const { title } = Astro.props;
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+
+    <!--
+      The .ico is listed first with sizes="any" and the SVG second: browsers that
+      understand SVG favicons prefer the later, more specific entry, while Windows
+      and anything older falls back to the .ico. That .ico is what a desktop
+      shortcut picks up, so it carries sizes all the way to 256px.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="application-name" content="PC Register" />
+
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
