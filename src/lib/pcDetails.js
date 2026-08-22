@@ -20,6 +20,7 @@ export const DETAIL_FIELDS = [
   { key: 'os_edition', label: 'Windows Edition' },
   { key: 'condition_status', label: 'Condition' },
   { key: 'location', label: 'Location' },
+  { key: 'used_by', label: 'Used By' },
   { key: 'extension_number', label: 'Extension Number' },
   { key: 'teamviewer_id', label: 'TeamViewer ID' },
   { key: 'ip_address', label: 'IP Address' },
@@ -27,7 +28,7 @@ export const DETAIL_FIELDS = [
   { key: 'status', label: 'Status', badge: 'status' },
   { key: 'performance', label: 'Performance', badge: 'performance' },
   { key: 'softwares', label: 'Softwares Installed' },
-  { key: 'assigned_users', label: 'Users' },
+  { key: 'assigned_users', label: 'Login Accounts' },
   { key: 'comments', label: 'Comments' },
   { key: 'machine_id', label: 'Machine ID' },
   {

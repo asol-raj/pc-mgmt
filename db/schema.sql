@@ -24,6 +24,7 @@ CREATE TABLE pcs (
   os_edition         ENUM('Home', 'Pro', 'Enterprise', 'Education') NULL,
   condition_status   ENUM('New', 'Refurbished') NOT NULL DEFAULT 'New',
   location           VARCHAR(150) NOT NULL,
+  used_by            VARCHAR(150) NULL COMMENT 'person the PC is assigned to, set by the admin',
   extension_number   VARCHAR(20)  NULL,
   teamviewer_id      VARCHAR(50)  NULL,
   ip_address         VARCHAR(45)  NULL COMMENT 'IPv4 or IPv6 address of the machine',

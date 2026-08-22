@@ -45,3 +45,4 @@ run anywhere — add a new one instead.
 - `0001_add_os_edition_and_network.sql` — adds `os_edition`, `ip_address`, `ip_config`.
 - `0002_add_last_reported_at.sql` — adds `last_reported_at`, set by the agent API.
 - `0003_add_machine_id.sql` — adds the unique `machine_id` the agent API matches on.
+- `0004_add_used_by.sql` — adds the admin-owned `used_by` person name.

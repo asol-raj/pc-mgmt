@@ -11,6 +11,7 @@ const EXPORT_COLUMNS = [
   'os_edition',
   'condition_status',
   'location',
+  'used_by',
   'extension_number',
   'teamviewer_id',
   'ip_address',

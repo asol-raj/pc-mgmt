@@ -86,6 +86,7 @@ export function validatePcInput(body: any): { data?: PcInput; error?: string } {
       os_edition,
       condition_status: body.condition_status,
       location,
+      used_by: body.used_by ? String(body.used_by).trim() : null,
       extension_number: body.extension_number ? String(body.extension_number).trim() : null,
       teamviewer_id: body.teamviewer_id ? String(body.teamviewer_id).trim() : null,
       ip_address,

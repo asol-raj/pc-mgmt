@@ -22,6 +22,7 @@ export interface Pc {
   os_edition: OsEdition | null;
   condition_status: ConditionStatus;
   location: string;
+  used_by: string | null;
   extension_number: string | null;
   teamviewer_id: string | null;
   ip_address: string | null;
