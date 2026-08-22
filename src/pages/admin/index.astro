@@ -1,100 +1,88 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import PcDetailsPane from '../../components/PcDetailsPane.astro';
+import TopBar from '../../components/TopBar.astro';
+import RegisterTable from '../../components/RegisterTable.astro';
+import DataTable from '../../components/DataTable.astro';
+import RecordDrawer from '../../components/RecordDrawer.astro';
 import db from '../../lib/db';
 import type { Pc } from '../../lib/types';
 import {
-  MonitorCog,
   ExternalLink,
   LogOut,
-  Search,
   Plus,
-  Pencil,
-  Trash2,
-  RotateCw,
   MonitorX,
   X,
   Check,
-  ArrowUp,
-  ArrowDown,
-  ChevronsUpDown,
   Download,
   Upload,
   WandSparkles,
+  ClipboardCopy,
 } from '@lucide/astro';
 
 const [rows] = await db.query('SELECT * FROM pcs ORDER BY name ASC');
 const pcs = rows as Pc[];
+
+const label = 'text-[11px] font-semibold text-slate-500';
+const field = 'rounded-lg border border-slate-300 px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400';
 ---
 
 <Layout title="Admin — PC Register">
-  <div class="min-h-screen bg-slate-100 flex flex-col" x-data="adminApp()" x-cloak>
-    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
-          <MonitorCog size={20} />
-        </div>
-        <div>
-          <p class="text-[11px] font-semibold uppercase tracking-wider text-indigo-500 leading-none">Office IT</p>
-          <h1 class="text-lg font-bold text-slate-900 leading-tight">Admin Dashboard</h1>
-        </div>
-      </div>
-      <div class="flex items-center gap-4">
-        <a href="/" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
-          View public register <ExternalLink size={14} />
-        </a>
-        <button
-          type="button"
-          x-on:click="logout()"
-          class="flex items-center gap-1.5 text-sm font-medium text-rose-600 hover:text-rose-800"
-        >
-          <LogOut size={15} />
-          Log out
-        </button>
-      </div>
-    </header>
+  <div class="flex flex-col h-screen overflow-hidden bg-slate-50" x-data="adminApp()" x-cloak>
+    <TopBar eyebrow="Office IT" title="Admin Dashboard" admin>
+      <button
+        type="button"
+        x-show="view === 'data'"
+        x-on:click="copyTsv()"
+        title="Copy the visible rows — paste straight into Excel or Google Sheets"
+        class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+      >
+        <ClipboardCopy size={13} x-show="!copied" />
+        <Check size={13} x-show="copied" class="text-emerald-600" />
+        <span x-text="copied ? 'Copied' : 'Copy'"></span>
+      </button>
 
-    <main class="flex-1 min-h-0 flex flex-col p-6 max-w-[1600px] w-full mx-auto gap-4">
-      <div class="flex items-center justify-between gap-4">
-        <div class="relative w-full max-w-sm">
-          <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            x-model="search"
-            placeholder="Search by name, asset tag, brand, location, IP..."
-            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          />
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <a
-            href="/api/pcs/export"
-            class="flex items-center gap-1.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold px-4 py-2 hover:bg-slate-50"
-          >
-            <Download size={16} />
-            Export CSV
-          </a>
-          <label
-            class="flex items-center gap-1.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold px-4 py-2 hover:bg-slate-50 cursor-pointer"
-            :class="importing ? 'opacity-60 pointer-events-none' : ''"
-          >
-            <Upload size={16} />
-            <span x-text="importing ? 'Importing...' : 'Import CSV'"></span>
-            <input type="file" accept=".csv,text/csv" class="hidden" x-on:change="importCsv($event)" />
-          </label>
-          <button
-            type="button"
-            x-on:click="openCreate()"
-            class="flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold px-4 py-2 hover:bg-indigo-700"
-          >
-            <Plus size={16} />
-            Add New PC
-          </button>
-        </div>
-      </div>
+      <a
+        href="/api/pcs/export"
+        title="Download every PC as CSV"
+        class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+      >
+        <Download size={13} />
+        Export
+      </a>
 
+      <label
+        title="Upload a CSV — rows are matched on asset tag and updated, or created"
+        class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+        :class="importing ? 'opacity-60 pointer-events-none' : ''"
+      >
+        <Upload size={13} />
+        <span x-text="importing ? 'Importing…' : 'Import'"></span>
+        <input type="file" accept=".csv,text/csv" class="hidden" x-on:change="importCsv($event)" />
+      </label>
+
+      <button
+        type="button"
+        x-on:click="openCreate()"
+        class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-indigo-700"
+      >
+        <Plus size={13} />
+        Add PC
+      </button>
+
+      <div class="h-6 w-px bg-slate-200"></div>
+
+      <a href="/" target="_blank" rel="noopener noreferrer" title="Open the public register" class="text-slate-400 hover:text-slate-700">
+        <ExternalLink size={15} />
+      </a>
+      <button type="button" x-on:click="logout()" title="Log out" class="text-slate-400 hover:text-rose-600">
+        <LogOut size={15} />
+      </button>
+    </TopBar>
+
+    <main class="flex-1 min-h-0 flex flex-col p-3 gap-3">
       <template x-if="importResult">
         <div
-          class="rounded-lg border px-4 py-3 text-sm flex items-start justify-between gap-4"
+          class="rounded-lg border px-3 py-2 text-[13px] flex items-start justify-between gap-4 shrink-0"
           :class="importResult.error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'"
         >
           <div class="flex-1">
@@ -105,9 +93,10 @@ const pcs = rows as Pc[];
               <div>
                 <p>
                   Import complete: <span x-text="importResult.created"></span> created,
-                  <span x-text="importResult.updated"></span> updated<span x-show="importResult.errors?.length">, <span x-text="importResult.errors.length"></span> failed</span>.
+                  <span x-text="importResult.updated"></span> updated<span x-show="importResult.errors?.length">,
+                  <span x-text="importResult.errors.length"></span> failed</span>.
                 </p>
-                <ul class="mt-1 list-disc list-inside text-xs text-rose-700" x-show="importResult.errors?.length">
+                <ul class="mt-1 list-disc list-inside text-[11px] text-rose-700" x-show="importResult.errors?.length">
                   <template x-for="err in importResult.errors.slice(0, 10)" :key="err.row">
                     <li x-text="`Row ${err.row}: ${err.error}`"></li>
                   </template>
@@ -116,204 +105,51 @@ const pcs = rows as Pc[];
             </template>
           </div>
           <button type="button" x-on:click="importResult = null" class="text-slate-400 hover:text-slate-700 shrink-0">
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
       </template>
 
-      <div class="flex-1 min-h-0 flex gap-4">
-        <div class="flex-1 min-w-0 flex flex-col">
       <template x-if="filtered.length === 0">
-        <div class="flex flex-col items-center gap-2 text-center mt-16">
-          <MonitorX size={28} class="text-slate-300" />
-          <p class="text-sm text-slate-400">No PCs found.</p>
+        <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+          <MonitorX size={26} class="text-slate-300" />
+          <p class="text-sm text-slate-500" x-text="pcs.length ? 'No PCs match the current search or filters.' : 'No PCs in the register yet.'"></p>
+          <button
+            type="button"
+            x-on:click="pcs.length ? resetFilters() : openCreate()"
+            class="text-[13px] font-semibold text-indigo-600 hover:text-indigo-800"
+            x-text="pcs.length ? 'Clear everything' : 'Add the first PC'"
+          ></button>
         </div>
       </template>
 
-      <template x-if="filtered.length > 0">
-        <div class="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white">
-          <table class="min-w-max w-full text-sm border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <template x-for="col in columns" :key="col.key">
-                  <th class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-3 py-2.5 text-left">
-                    <button
-                      type="button"
-                      x-on:click="toggleSort(col)"
-                      class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-800 whitespace-nowrap"
-                    >
-                      <span x-text="col.label"></span>
-                      <ChevronsUpDown size={12} x-show="sortKey !== col.key" class="text-slate-300" />
-                      <ArrowUp size={12} x-show="sortKey === col.key && sortDir === 'asc'" />
-                      <ArrowDown size={12} x-show="sortKey === col.key && sortDir === 'desc'" />
-                    </button>
-                  </th>
-                </template>
-                <th class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody class="divide-y divide-dotted divide-slate-300">
-              <template x-for="pc in filtered" :key="pc.id">
-                <tr
-                  x-on:click="select(pc.id)"
-                  class="cursor-pointer transition"
-                  :class="pc.id === selectedId ? 'bg-indigo-50' : 'hover:bg-slate-50'"
-                >
-                  <template x-for="col in columns" :key="col.key">
-                    <td
-                      class="px-3 py-2.5 text-slate-700"
-                      :class="[
-                        col.wrap && !isEditing(pc, col) ? 'max-w-[220px] truncate' : 'whitespace-nowrap',
-                        editableField(col) ? 'cursor-text' : ''
-                      ]"
-                      :title="editableField(col) ? 'Click to edit' : (col.wrap ? cellText(col, pc) : null)"
-                      x-on:click="startEdit(pc, col)"
-                    >
-                      <!-- Inline editor: Enter saves, Esc cancels, blur saves (or reverts if required and blank) -->
-                      <template x-if="isEditing(pc, col)">
-                        <div class="min-w-[130px]">
-                          <template x-if="editableField(col).type === 'select'">
-                            <select
-                              x-model="editValue"
-                              x-init="$nextTick(() => $el.focus())"
-                              x-on:change="commitEdit(pc, col)"
-                              x-on:keydown.escape.prevent.stop="cancelEdit()"
-                              class="w-full rounded border border-indigo-400 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                            >
-                              <template x-for="opt in editableField(col).options" :key="opt">
-                                <option :value="opt" x-text="opt"></option>
-                              </template>
-                            </select>
-                          </template>
-                          <template x-if="editableField(col).type !== 'select'">
-                            <input
-                              type="text"
-                              x-model="editValue"
-                              x-init="$nextTick(() => { $el.focus(); $el.select(); })"
-                              x-on:keydown.enter.prevent="commitEdit(pc, col)"
-                              x-on:keydown.escape.prevent.stop="cancelEdit()"
-                              x-on:blur="commitEdit(pc, col, true)"
-                              class="w-full rounded border px-2 py-1 text-sm focus:outline-none focus:ring-2"
-                              :class="editInvalid
-                                ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-200'
-                                : 'border-indigo-400 focus:ring-indigo-300'"
-                            />
-                          </template>
-                        </div>
-                      </template>
-
-                      <template x-if="!isEditing(pc, col) && col.badge">
-                        <span
-                          class="text-xs rounded-full px-2 py-0.5 font-semibold"
-                          :class="col.badge === 'status' ? statusBadgeClass(pc[col.key]) : performanceBadgeClass(pc[col.key])"
-                          x-text="pc[col.key]"
-                        ></span>
-                      </template>
-                      <template x-if="!isEditing(pc, col) && !col.badge && col.key === 'name'">
-                        <button
-                          type="button"
-                          x-on:click.stop="openDetails(pc)"
-                          class="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline text-left"
-                          title="Show all details"
-                          x-text="pc.name"
-                        ></button>
-                      </template>
-                      <template x-if="!isEditing(pc, col) && !col.badge && col.key !== 'name'">
-                        <span
-                          :class="editableField(col) ? 'border-b border-dotted border-slate-300 hover:border-indigo-500' : ''"
-                          x-text="cellText(col, pc)"
-                        ></span>
-                      </template>
-                    </td>
-                  </template>
-                  <td class="px-3 py-2.5">
-                    <div class="flex items-center justify-end gap-3 whitespace-nowrap">
-                      <button type="button" x-on:click="toggleStatus(pc)" class="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800">
-                        <RotateCw size={12} />
-                        <span x-text="pc.status === 'Active' ? 'Retire' : 'Reactivate'"></span>
-                      </button>
-                      <button type="button" x-on:click="openEdit(pc)" class="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900">
-                        <Pencil size={12} />
-                        Edit
-                      </button>
-                      <button type="button" x-on:click="remove(pc)" class="flex items-center gap-1 text-xs font-medium text-rose-600 hover:text-rose-800">
-                        <Trash2 size={12} />
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
+      <template x-if="filtered.length > 0 && view === 'register'">
+        <RegisterTable admin />
       </template>
-        </div>
 
-        <PcDetailsPane />
-      </div>
+      <template x-if="filtered.length > 0 && view === 'data'">
+        <DataTable admin />
+      </template>
     </main>
 
-    <!-- Full record for one PC, opened from the PC name in the table -->
-    <template x-if="detailPc">
-      <div
-        class="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-30"
-        x-on:keydown.escape.window="closeDetails()"
-      >
-        <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col" x-on:click.outside="closeDetails()">
-          <div class="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
-            <div>
-              <h2 class="text-lg font-bold text-slate-900" x-text="detailPc.name"></h2>
-              <p class="text-xs text-slate-500 font-mono mt-0.5" x-text="detailPc.asset_tag"></p>
-            </div>
-            <div class="flex items-center gap-3 shrink-0">
-              <button
-                type="button"
-                x-on:click="const pc = detailPc; closeDetails(); openEdit(pc)"
-                class="flex items-center gap-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold px-3 py-1.5 hover:bg-slate-50"
-              >
-                <Pencil size={13} />
-                Edit
-              </button>
-              <button type="button" x-on:click="closeDetails()" class="text-slate-400 hover:text-slate-700">
-                <X size={18} />
-              </button>
-            </div>
-          </div>
+    <footer class="shrink-0 border-t border-slate-200 bg-white px-4 py-1.5 text-[11px] text-slate-400">
+      <span x-show="view === 'register'">
+        Click a PC name for its full record · Used By and Location edit in place — Enter saves, Esc cancels · Switch to
+        Data to edit every admin-owned field
+      </span>
+      <span x-show="view === 'data'" x-cloak>
+        Columns with a highlighted heading are yours to edit — click a cell, Enter saves, Esc cancels · The rest are
+        overwritten by the agent app on its next report
+      </span>
+    </footer>
 
-          <div class="overflow-y-auto px-6 py-2">
-            <template x-for="field in detailFields" :key="field.key">
-              <div class="flex items-start justify-between gap-6 py-2.5 border-b border-slate-100 last:border-0">
-                <span class="text-xs font-medium text-slate-500 w-44 shrink-0 pt-0.5" x-text="field.label"></span>
+    <RecordDrawer admin />
 
-                <template x-if="field.badge">
-                  <span
-                    class="rounded-full px-2.5 py-0.5 text-xs font-semibold shrink-0"
-                    :class="field.badge === 'status' ? statusBadgeClass(detailPc.status) : performanceBadgeClass(detailPc.performance)"
-                    x-text="detailValue(field, detailPc)"
-                  ></span>
-                </template>
-                <template x-if="!field.badge">
-                  <span
-                    class="text-sm font-medium text-slate-900 text-right break-words min-w-0"
-                    x-text="detailValue(field, detailPc)"
-                  ></span>
-                </template>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <!-- Inline edit failed: the row kept its old value -->
+    <!-- An inline edit that failed: the row kept its old value -->
     <div
       x-show="toast"
       x-cloak
-      class="fixed bottom-5 right-5 z-40 max-w-sm rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-lg flex items-start gap-3"
+      class="fixed bottom-5 right-5 z-50 max-w-sm rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] text-rose-700 shadow-lg flex items-start gap-3"
     >
       <span class="flex-1" x-text="toast"></span>
       <button type="button" x-on:click="toast = null" class="text-rose-400 hover:text-rose-700 shrink-0">
@@ -321,104 +157,120 @@ const pcs = rows as Pc[];
       </button>
     </div>
 
-    <!-- Add / Edit modal -->
-    <div
-      x-show="modalOpen"
-      x-cloak
-      class="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-20"
-    >
-      <!-- Dismissed only via Cancel / the X button, so a stray click never discards a filled-in form. -->
-      <div class="bg-white rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto p-8">
+    <!-- Add / Edit modal. Dismissed only via Cancel or the X, so a stray click never discards a filled-in form. -->
+    <div x-show="modalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+      <div class="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-7">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl font-bold text-slate-900" x-text="form.id ? 'Edit PC' : 'Add New PC'"></h2>
+          <h2 class="text-lg font-bold text-slate-900" x-text="form.id ? 'Edit PC' : 'Add New PC'"></h2>
           <button type="button" x-on:click="closeModal()" class="text-slate-400 hover:text-slate-700">
             <X size={18} />
           </button>
         </div>
 
-        <form class="mt-5 flex flex-col gap-5" x-on:submit.prevent="save()">
-          <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 flex flex-col gap-2">
-            <span class="text-xs font-medium text-slate-500">
-              Paste the output of the Windows <code>systeminfo</code> command to auto-fill Name, Brand, CPU, RAM, OS, Windows edition and IP details
+        <form class="mt-5 flex flex-col gap-4" x-on:submit.prevent="save()">
+          <div class="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+            <span class="text-[11px] text-slate-500">
+              Paste the output of the Windows <code>systeminfo</code> command to auto-fill Name, Brand, CPU, RAM, OS,
+              Windows edition and IP details
             </span>
             <textarea
               x-model="systemInfoText"
-              rows="4"
+              rows="3"
               placeholder="Host Name:                 DESKTOP-AB12CD3&#10;OS Name:                   Microsoft Windows 11 Pro&#10;..."
-              class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
-            ></textarea>
+              class="rounded-lg border border-slate-300 px-3 py-2 text-[11px] font-mono"></textarea>
             <div class="flex items-center justify-between gap-2">
-              <p class="text-xs" :class="systemInfoApplied?.startsWith('No') ? 'text-amber-600' : 'text-emerald-600'" x-show="systemInfoApplied" x-text="systemInfoApplied"></p>
+              <p
+                class="text-[11px]"
+                :class="systemInfoApplied?.startsWith('No') ? 'text-amber-600' : 'text-emerald-600'"
+                x-show="systemInfoApplied"
+                x-text="systemInfoApplied"
+              >
+              </p>
               <button
                 type="button"
                 x-on:click="applySystemInfo()"
-                class="ml-auto shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold px-3 py-1.5 hover:bg-slate-100"
+                class="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
               >
-                <WandSparkles size={13} />
+                <WandSparkles size={12} />
                 Parse &amp; Fill
               </button>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Asset Tag *</span>
-              <input type="text" x-model="form.asset_tag" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>Asset Tag *</span>
+              <input type="text" x-model="form.asset_tag" required class={field} />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">PC Name *</span>
-              <input type="text" x-model="form.name" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>PC Name *</span>
+              <input type="text" x-model="form.name" required class={field} />
             </label>
           </div>
 
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-3 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Brand</span>
-              <input type="text" x-model="form.brand" placeholder="e.g. Dell, HP, Lenovo" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>Location *</span>
+              <input type="text" x-model="form.location" required placeholder="e.g. 2nd Floor — Accounts" class={field} />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Machine Type</span>
-              <select x-model="form.machine_type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>Used By</span>
+              <input type="text" x-model="form.used_by" placeholder="Person at this desk" class={field} />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class={label}>Extension Number</span>
+              <input type="text" x-model="form.extension_number" class={field} />
+            </label>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <label class="flex flex-col gap-1">
+              <span class={label}>Brand</span>
+              <input type="text" x-model="form.brand" placeholder="e.g. Dell, HP, Lenovo" class={field} />
+            </label>
+            <label class="flex flex-col gap-1">
+              <span class={label}>Machine Type</span>
+              <select x-model="form.machine_type" class={field}>
                 <option value="Desktop">Desktop</option>
                 <option value="Laptop">Laptop</option>
                 <option value="AIO">AIO</option>
               </select>
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Condition</span>
-              <select x-model="form.condition_status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>Condition</span>
+              <select x-model="form.condition_status" class={field}>
                 <option value="New">New</option>
                 <option value="Refurbished">Refurbished</option>
               </select>
             </label>
           </div>
 
-          <div class="grid grid-cols-4 gap-4">
+          <div class="grid grid-cols-4 gap-3">
             <label class="flex flex-col gap-1 col-span-2">
-              <span class="text-xs font-medium text-slate-500">CPU</span>
-              <input type="text" x-model="form.cpu" placeholder="e.g. Intel i5-13400" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>CPU</span>
+              <input type="text" x-model="form.cpu" placeholder="e.g. Intel i5-13400" class={field} />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">RAM (GB)</span>
-              <input type="number" min="0" x-model="form.ram_gb" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>RAM (GB)</span>
+              <input type="number" min="0" x-model="form.ram_gb" class={field} />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Storage Capacity</span>
-              <input type="text" x-model="form.storage_capacity" placeholder="e.g. 256GB, 1TB" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>Storage Capacity</span>
+              <input type="text" x-model="form.storage_capacity" placeholder="e.g. 256GB, 1TB" class={field} />
             </label>
           </div>
 
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-3 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">OS</span>
-              <select x-model="form.os" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>OS</span>
+              <select x-model="form.os" class={field}>
                 <option value="Windows 10">Windows 10</option>
                 <option value="Windows 11">Windows 11</option>
               </select>
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Windows Edition</span>
-              <select x-model="form.os_edition" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>Windows Edition</span>
+              <select x-model="form.os_edition" class={field}>
                 <option value="">—</option>
                 <option value="Home">Home</option>
                 <option value="Pro">Pro</option>
@@ -427,8 +279,8 @@ const pcs = rows as Pc[];
               </select>
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Storage Type</span>
-              <select x-model="form.storage_type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>Storage Type</span>
+              <select x-model="form.storage_type" class={field}>
                 <option value="">—</option>
                 <option value="SSD">SSD</option>
                 <option value="HDD">HDD</option>
@@ -436,45 +288,40 @@ const pcs = rows as Pc[];
             </label>
           </div>
 
-          <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-500">Location *</span>
-            <input type="text" x-model="form.location" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-          </label>
-
-          <div class="grid grid-cols-4 gap-4">
+          <div class="grid grid-cols-4 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Extension Number</span>
-              <input type="text" x-model="form.extension_number" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>TeamViewer ID</span>
+              <input type="text" x-model="form.teamviewer_id" class={field} />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">TeamViewer ID</span>
-              <input type="text" x-model="form.teamviewer_id" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <span class={label}>IP Address</span>
+              <input type="text" x-model="form.ip_address" placeholder="e.g. 192.168.1.57" class={`${field} font-mono`} />
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">IP Address</span>
-              <input type="text" x-model="form.ip_address" placeholder="e.g. 192.168.1.57" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono" />
-            </label>
-            <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">IP Configuration</span>
-              <select x-model="form.ip_config" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>IP Configuration</span>
+              <select x-model="form.ip_config" class={field}>
                 <option value="">—</option>
                 <option value="Static">Static</option>
                 <option value="Dynamic">Dynamic (DHCP)</option>
               </select>
             </label>
+            <label class="flex flex-col gap-1">
+              <span class={label}>Login Accounts</span>
+              <input type="text" x-model="form.assigned_users" placeholder="Windows accounts, comma separated" class={field} />
+            </label>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Status</span>
-              <select x-model="form.status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>Status</span>
+              <select x-model="form.status" class={field}>
                 <option value="Active">Active</option>
                 <option value="Retired">Retired</option>
               </select>
             </label>
             <label class="flex flex-col gap-1">
-              <span class="text-xs font-medium text-slate-500">Performance</span>
-              <select x-model="form.performance" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <span class={label}>Performance</span>
+              <select x-model="form.performance" class={field}>
                 <option value="Slow">Slow</option>
                 <option value="Average">Average</option>
                 <option value="Good">Good</option>
@@ -484,28 +331,33 @@ const pcs = rows as Pc[];
           </div>
 
           <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-500">Softwares Installed</span>
-            <textarea x-model="form.softwares" rows="3" placeholder="Comma separated, e.g. Office 365, Google Chrome, Adobe Reader" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+            <span class={label}>Softwares Installed</span>
+            <textarea
+              x-model="form.softwares"
+              rows="2"
+              placeholder="Comma separated, e.g. Office 365, Google Chrome, Adobe Reader"
+              class={field}></textarea>
           </label>
 
           <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-500">Users</span>
-            <input type="text" x-model="form.assigned_users" placeholder="Comma separated if shared" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <span class={label}>Comments</span>
+            <textarea x-model="form.comments" rows="2" placeholder="Anything worth noting about this PC" class={field}
+            ></textarea>
           </label>
 
-          <label class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-slate-500">Comments</span>
-            <textarea x-model="form.comments" rows="3" placeholder="Anyone can leave a note about this PC" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
-          </label>
+          <p class="text-[13px] text-rose-600" x-show="formError" x-text="formError"></p>
 
-          <p class="text-sm text-rose-600" x-show="formError" x-text="formError"></p>
-
-          <div class="flex items-center justify-end gap-3 mt-2">
-            <button type="button" x-on:click="closeModal()" class="text-sm font-medium text-slate-500 hover:text-slate-800">Cancel</button>
-            <button type="submit" :disabled="saving" class="flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold px-4 py-2 hover:bg-indigo-700 disabled:opacity-60">
-              <Check size={15} x-show="!saving" />
-              <span x-show="!saving">Save</span>
-              <span x-show="saving">Saving...</span>
+          <div class="mt-1 flex items-center justify-end gap-3">
+            <button type="button" x-on:click="closeModal()" class="text-[13px] font-semibold text-slate-500 hover:text-slate-800">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              :disabled="saving"
+              class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-[13px] font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              <Check size={14} x-show="!saving" />
+              <span x-text="saving ? 'Saving…' : 'Save'"></span>
             </button>
           </div>
         </form>

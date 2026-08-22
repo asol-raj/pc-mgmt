@@ -1,9 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import LeftPanel from '../components/LeftPanel.astro';
-import TopNavBar from '../components/TopNavBar.astro';
-import VitalsPane from '../components/VitalsPane.astro';
-import { MonitorX, ArrowUp, ArrowDown, ChevronsUpDown, X } from '@lucide/astro';
+import TopBar from '../components/TopBar.astro';
+import RegisterTable from '../components/RegisterTable.astro';
+import DataTable from '../components/DataTable.astro';
+import RecordDrawer from '../components/RecordDrawer.astro';
+import { MonitorX, ShieldCheck, ClipboardCopy, Check } from '@lucide/astro';
 import db from '../lib/db';
 import type { Pc } from '../lib/types';
 
@@ -12,150 +13,61 @@ const pcs = rows as Pc[];
 ---
 
 <Layout title="PC Register">
-  <div class="flex h-screen overflow-hidden" x-data="pcApp()" x-cloak>
-    <LeftPanel />
-
-    <div class="flex-1 flex flex-col min-w-0">
-      <TopNavBar />
-
-      <main class="flex-1 min-h-0 flex flex-col p-6 gap-4">
-        <template x-if="filtered.length === 0">
-          <div class="flex flex-col items-center gap-2 text-center mt-16">
-            <MonitorX size={28} class="text-slate-300" />
-            <p class="text-sm text-slate-400">No PCs match the current filters.</p>
-          </div>
-        </template>
-
-        <template x-if="filtered.length > 0">
-          <div class="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-white">
-            <table class="min-w-max w-full text-sm border-separate border-spacing-0">
-              <thead>
-                <tr>
-                  <template x-for="col in columns" :key="col.key">
-                    <th class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-3 py-2 align-top text-left">
-                      <button
-                        type="button"
-                        x-on:click="toggleSort(col)"
-                        class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-800 whitespace-nowrap"
-                      >
-                        <span x-text="col.label"></span>
-                        <ChevronsUpDown size={12} x-show="sortKey !== col.key" class="text-slate-300" />
-                        <ArrowUp size={12} x-show="sortKey === col.key && sortDir === 'asc'" />
-                        <ArrowDown size={12} x-show="sortKey === col.key && sortDir === 'desc'" />
-                      </button>
-
-                      <div class="mt-1.5">
-                        <template x-if="col.type === 'select'">
-                          <select
-                            x-model="colFilters[col.filterKey || col.key]"
-                            class="w-full rounded border border-slate-300 text-xs px-1.5 py-1 font-normal normal-case focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          >
-                            <option value="All">All</option>
-                            <template x-for="opt in col.options" :key="opt">
-                              <option :value="opt" x-text="opt"></option>
-                            </template>
-                          </select>
-                        </template>
-                        <template x-if="col.type === 'text'">
-                          <input
-                            type="text"
-                            x-model="colFilters[col.filterKey || col.key]"
-                            placeholder="Filter..."
-                            class="w-full rounded border border-slate-300 text-xs px-1.5 py-1 font-normal normal-case focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          />
-                        </template>
-                      </div>
-                    </th>
-                  </template>
-                </tr>
-              </thead>
-
-              <tbody class="divide-y divide-dotted divide-slate-300">
-                <template x-for="pc in filtered" :key="pc.id">
-                  <tr
-                    x-on:click="select(pc.id)"
-                    class="cursor-pointer transition"
-                    :class="pc.id === selectedId ? 'bg-indigo-50' : 'hover:bg-slate-50'"
-                  >
-                    <template x-for="col in columns" :key="col.key">
-                      <td
-                        class="px-3 py-2.5 text-slate-700"
-                        :class="isWrapCol(col.key) ? 'max-w-[220px] truncate' : 'whitespace-nowrap'"
-                        :title="isWrapCol(col.key) ? cellText(col, pc) : null"
-                      >
-                        <template x-if="col.badge">
-                          <span
-                            class="text-xs rounded-full px-2 py-0.5 font-semibold"
-                            :class="col.badge === 'status' ? statusBadgeClass(pc[col.key]) : performanceBadgeClass(pc[col.key])"
-                            x-text="pc[col.key]"
-                          ></span>
-                        </template>
-                        <template x-if="!col.badge && col.key === 'name'">
-                          <button
-                            type="button"
-                            x-on:click.stop="openDetails(pc)"
-                            class="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline text-left"
-                            title="Show all details"
-                            x-text="pc.name"
-                          ></button>
-                        </template>
-                        <template x-if="!col.badge && col.key !== 'name'">
-                          <span x-text="cellText(col, pc)"></span>
-                        </template>
-                      </td>
-                    </template>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </template>
-      </main>
-    </div>
-
-    <VitalsPane />
-
-    <!-- Full record for one PC, opened from the PC name in the list -->
-    <template x-if="detailPc">
-      <div
-        class="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-30"
-        x-on:keydown.escape.window="closeDetails()"
+  <div class="flex flex-col h-screen overflow-hidden bg-slate-50" x-data="pcApp()" x-cloak>
+    <TopBar eyebrow="Office IT" title="PC Register">
+      <button
+        type="button"
+        x-show="view === 'data'"
+        x-on:click="copyTsv()"
+        title="Copy the visible rows — paste straight into Excel or Google Sheets"
+        class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
       >
-        <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col" x-on:click.outside="closeDetails()">
-          <div class="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
-            <div>
-              <h2 class="text-lg font-bold text-slate-900" x-text="detailPc.name"></h2>
-              <p class="text-xs text-slate-500 font-mono mt-0.5" x-text="detailPc.asset_tag"></p>
-            </div>
-            <button type="button" x-on:click="closeDetails()" class="text-slate-400 hover:text-slate-700 shrink-0">
-              <X size={18} />
-            </button>
-          </div>
+        <ClipboardCopy size={13} x-show="!copied" />
+        <Check size={13} x-show="copied" class="text-emerald-600" />
+        <span x-text="copied ? 'Copied' : 'Copy'"></span>
+      </button>
 
-          <div class="overflow-y-auto px-6 py-2">
-            <template x-for="field in detailFields" :key="field.key">
-              <div class="flex items-start justify-between gap-6 py-2.5 border-b border-slate-100 last:border-0">
-                <span class="text-xs font-medium text-slate-500 w-44 shrink-0 pt-0.5" x-text="field.label"></span>
+      <a
+        href="/admin"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+      >
+        <ShieldCheck size={13} />
+        Admin
+      </a>
+    </TopBar>
 
-                <template x-if="field.badge">
-                  <span
-                    class="rounded-full px-2.5 py-0.5 text-xs font-semibold shrink-0"
-                    :class="field.badge === 'status' ? statusBadgeClass(detailPc.status) : performanceBadgeClass(detailPc.performance)"
-                    x-text="detailValue(field, detailPc)"
-                  ></span>
-                </template>
-                <template x-if="!field.badge">
-                  <span
-                    class="text-sm font-medium text-slate-900 text-right break-words min-w-0"
-                    x-text="detailValue(field, detailPc)"
-                  ></span>
-                </template>
-              </div>
-            </template>
-          </div>
+    <main class="flex-1 min-h-0 flex flex-col p-3">
+      <template x-if="filtered.length === 0">
+        <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+          <MonitorX size={26} class="text-slate-300" />
+          <p class="text-sm text-slate-500">No PCs match the current search or filters.</p>
+          <button type="button" x-on:click="resetFilters()" class="text-[13px] font-semibold text-indigo-600 hover:text-indigo-800">
+            Clear everything
+          </button>
         </div>
-      </div>
-    </template>
+      </template>
+
+      <template x-if="filtered.length > 0 && view === 'register'">
+        <RegisterTable />
+      </template>
+
+      <template x-if="filtered.length > 0 && view === 'data'">
+        <DataTable />
+      </template>
+    </main>
+
+    <footer class="shrink-0 border-t border-slate-200 bg-white px-4 py-1.5 text-[11px] text-slate-400">
+      <span x-show="view === 'register'">
+        Click a row to open its full record · Click a column heading to sort · Use Filters for per-column filtering
+      </span>
+      <span x-show="view === 'data'" x-cloak>
+        A plain sheet of every field · Double-click a cell to open the full record · Copy pastes into Excel or Google Sheets
+      </span>
+    </footer>
+
+    <RecordDrawer />
   </div>
 
   <script type="application/json" id="pcs-data" set:html={JSON.stringify(pcs)} />

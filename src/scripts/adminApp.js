@@ -1,42 +1,5 @@
 import { parseSystemInfo } from '../lib/systeminfo.js';
-import { DETAIL_FIELDS, detailValue, formatDateTime } from '../lib/pcDetails.js';
-
-function compareVal(a, b) {
-  if (a == null && b == null) return 0;
-  if (a == null) return -1;
-  if (b == null) return 1;
-  if (typeof a === 'number' && typeof b === 'number') return a - b;
-  return String(a).toLowerCase().localeCompare(String(b).toLowerCase());
-}
-
-const COLUMNS = [
-  { key: 'asset_tag', label: 'Asset Tag' },
-  { key: 'name', label: 'PC Name' },
-  { key: 'brand', label: 'Brand', render: (pc) => pc.brand || '—' },
-  { key: 'machine_type', label: 'Type' },
-  { key: 'cpu', label: 'CPU', render: (pc) => pc.cpu || '—' },
-  { key: 'ram_gb', label: 'RAM', render: (pc) => (pc.ram_gb ? `${pc.ram_gb} GB` : '—') },
-  {
-    key: 'storage',
-    label: 'Storage',
-    render: (pc) => [pc.storage_capacity, pc.storage_type].filter(Boolean).join(' ') || '—',
-    sortValue: (pc) => pc.storage_capacity || '',
-  },
-  { key: 'os', label: 'OS' },
-  { key: 'os_edition', label: 'Edition', render: (pc) => pc.os_edition || '—' },
-  { key: 'condition_status', label: 'Condition' },
-  { key: 'location', label: 'Location' },
-  { key: 'extension_number', label: 'Ext.', render: (pc) => pc.extension_number || '—' },
-  { key: 'teamviewer_id', label: 'TeamViewer ID', render: (pc) => pc.teamviewer_id || '—' },
-  { key: 'ip_address', label: 'IP Address', render: (pc) => pc.ip_address || '—' },
-  { key: 'ip_config', label: 'IP Config', render: (pc) => pc.ip_config || '—' },
-  { key: 'status', label: 'Status', badge: 'status' },
-  { key: 'performance', label: 'Performance', badge: 'performance' },
-  { key: 'softwares', label: 'Softwares', render: (pc) => pc.softwares || '—', wrap: true },
-  { key: 'assigned_users', label: 'Users', render: (pc) => pc.assigned_users || '—', wrap: true },
-  { key: 'comments', label: 'Comments', render: (pc) => pc.comments || '—', wrap: true },
-  { key: 'last_reported_at', label: 'Last Agent Report', render: (pc) => formatDateTime(pc.last_reported_at, 'Never') },
-];
+import { withTableState } from './pcTable.js';
 
 // Rows come from MySQL, so every nullable column arrives as null. Everything that
 // builds a payload goes through here, otherwise .trim() on a null throws and the
@@ -59,6 +22,7 @@ function payloadFrom(source, overrides = {}) {
     os_edition: pc.os_edition || null,
     condition_status: pc.condition_status,
     location: text(pc.location),
+    used_by: text(pc.used_by) || null,
     extension_number: text(pc.extension_number) || null,
     teamviewer_id: text(pc.teamviewer_id) || null,
     ip_address: text(pc.ip_address) || null,
@@ -71,14 +35,17 @@ function payloadFrom(source, overrides = {}) {
   };
 }
 
-// Columns an admin can edit straight from the table. name, cpu, ram, storage, OS,
-// IP and softwares are left out on purpose: the agent app overwrites those on its
-// next report, so editing them here would not stick.
+// Columns an admin can edit straight from the Data tab. name, brand, cpu, ram,
+// storage, OS, IP, TeamViewer ID, softwares and assigned_users are left out on
+// purpose: the agent app overwrites those on its next report, so editing them
+// here would not stick. used_by is the admin's own answer to "whose desk is this",
+// which is why it exists alongside the agent-reported login accounts.
 const EDITABLE_FIELDS = {
   asset_tag: { type: 'text', required: true },
-  condition_status: { type: 'select', options: ['New', 'Refurbished'] },
+  used_by: { type: 'text' },
   location: { type: 'text', required: true },
   extension_number: { type: 'text' },
+  condition_status: { type: 'select', options: ['New', 'Refurbished'] },
   status: { type: 'select', options: ['Active', 'Retired'] },
   performance: { type: 'select', options: ['Slow', 'Average', 'Good', 'Excellent'] },
   comments: { type: 'text' },
@@ -98,6 +65,7 @@ const emptyForm = () => ({
   os_edition: '',
   condition_status: 'New',
   location: '',
+  used_by: '',
   extension_number: '',
   teamviewer_id: '',
   ip_address: '',
@@ -110,12 +78,7 @@ const emptyForm = () => ({
 });
 
 export default function adminApp() {
-  return {
-    pcs: [],
-    columns: COLUMNS,
-    search: '',
-    sortKey: null,
-    sortDir: 'asc',
+  return withTableState({
     modalOpen: false,
     saving: false,
     formError: '',
@@ -124,81 +87,16 @@ export default function adminApp() {
     importResult: null,
     systemInfoText: '',
     systemInfoApplied: null,
-    selectedId: null,
-    detailFields: DETAIL_FIELDS,
-    detailPc: null,
     editing: null,
     editValue: '',
     editInvalid: false,
     toast: null,
 
     init() {
-      const raw = document.getElementById('pcs-data')?.textContent ?? '[]';
-      this.pcs = JSON.parse(raw);
-      if (this.pcs.length) this.selectedId = this.pcs[0].id;
+      this.initTable();
     },
 
-    // Drives the vitals panel, so the fields off the right edge of the table
-    // are readable without scrolling.
-    get selected() {
-      return this.pcs.find((p) => p.id === this.selectedId) ?? null;
-    },
-
-    select(id) {
-      this.selectedId = id;
-    },
-
-    cellText(col, pc) {
-      if (col.render) return col.render(pc);
-      const value = pc[col.key];
-      return value === null || value === undefined || value === '' ? '—' : value;
-    },
-
-    toggleSort(col) {
-      if (this.sortKey !== col.key) {
-        this.sortKey = col.key;
-        this.sortDir = 'asc';
-      } else if (this.sortDir === 'asc') {
-        this.sortDir = 'desc';
-      } else {
-        this.sortKey = null;
-      }
-    },
-
-    get filtered() {
-      const q = this.search.trim().toLowerCase();
-      let rows = this.pcs;
-      if (q) {
-        rows = rows.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            p.asset_tag.toLowerCase().includes(q) ||
-            p.location.toLowerCase().includes(q) ||
-            (p.brand ?? '').toLowerCase().includes(q) ||
-            (p.ip_address ?? '').toLowerCase().includes(q)
-        );
-      }
-      if (!this.sortKey) return rows;
-
-      const col = this.columns.find((c) => c.key === this.sortKey);
-      const dir = this.sortDir === 'desc' ? -1 : 1;
-      return [...rows].sort((a, b) => {
-        const va = col.sortValue ? col.sortValue(a) : a[col.key];
-        const vb = col.sortValue ? col.sortValue(b) : b[col.key];
-        return dir * compareVal(va, vb);
-      });
-    },
-
-    statusBadgeClass(status) {
-      return status === 'Retired' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-    },
-
-    performanceBadgeClass(performance) {
-      if (performance === 'Slow') return 'bg-rose-100 text-rose-700';
-      if (performance === 'Average') return 'bg-amber-100 text-amber-700';
-      if (performance === 'Excellent') return 'bg-teal-100 text-teal-700';
-      return 'bg-emerald-100 text-emerald-700';
-    },
+    // ---- add / edit modal ------------------------------------------------
 
     openCreate() {
       this.form = emptyForm();
@@ -229,39 +127,22 @@ export default function adminApp() {
       if (!this.systemInfoText.trim()) return;
 
       const parsed = parseSystemInfo(this.systemInfoText);
-      const filled = [];
+      const labels = {
+        name: 'Name',
+        brand: 'Brand',
+        cpu: 'CPU',
+        ram_gb: 'RAM',
+        os: 'OS',
+        os_edition: 'Edition',
+        ip_address: 'IP Address',
+        ip_config: 'IP Config',
+      };
 
-      if (parsed.name) {
-        this.form.name = parsed.name;
-        filled.push('Name');
-      }
-      if (parsed.brand) {
-        this.form.brand = parsed.brand;
-        filled.push('Brand');
-      }
-      if (parsed.cpu) {
-        this.form.cpu = parsed.cpu;
-        filled.push('CPU');
-      }
-      if (parsed.ram_gb) {
-        this.form.ram_gb = parsed.ram_gb;
-        filled.push('RAM');
-      }
-      if (parsed.os) {
-        this.form.os = parsed.os;
-        filled.push('OS');
-      }
-      if (parsed.os_edition) {
-        this.form.os_edition = parsed.os_edition;
-        filled.push('Edition');
-      }
-      if (parsed.ip_address) {
-        this.form.ip_address = parsed.ip_address;
-        filled.push('IP Address');
-      }
-      if (parsed.ip_config) {
-        this.form.ip_config = parsed.ip_config;
-        filled.push('IP Config');
+      const filled = [];
+      for (const [key, label] of Object.entries(labels)) {
+        if (!parsed[key]) continue;
+        this.form[key] = parsed[key];
+        filled.push(label);
       }
 
       this.systemInfoApplied = filled.length
@@ -269,15 +150,11 @@ export default function adminApp() {
         : 'No recognizable fields found in the pasted text.';
     },
 
-    buildPayload() {
-      return payloadFrom(this.form);
-    },
-
     async save() {
       this.saving = true;
       this.formError = '';
 
-      const payload = this.buildPayload();
+      const payload = payloadFrom(this.form);
       const isEdit = Boolean(this.form.id);
       const url = isEdit ? `/api/pcs/${this.form.id}` : '/api/pcs';
       const method = isEdit ? 'PUT' : 'POST';
@@ -300,6 +177,7 @@ export default function adminApp() {
           if (idx !== -1) this.pcs[idx] = { ...this.pcs[idx], ...payload };
         } else {
           this.pcs.push({ ...payload, id: data.id });
+          this.selectedId = data.id;
         }
 
         this.modalOpen = false;
@@ -317,37 +195,42 @@ export default function adminApp() {
       if (res.ok) {
         this.pcs = this.pcs.filter((p) => p.id !== pc.id);
         if (this.selectedId === pc.id) this.selectedId = this.pcs[0]?.id ?? null;
+        if (this.drawerPc?.id === pc.id) this.closeRecord();
       } else {
-        alert('Failed to delete this PC.');
+        this.showToast('Failed to delete this PC.');
       }
     },
 
-    // Clicking the PC name shows the whole record, including the columns the
-    // table has no room for.
-    openDetails(pc) {
-      this.detailPc = pc;
+    async toggleStatus(pc) {
+      const nextStatus = pc.status === 'Active' ? 'Retired' : 'Active';
+
+      const res = await fetch(`/api/pcs/${pc.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadFrom(pc, { status: nextStatus })),
+      }).catch(() => null);
+
+      if (res?.ok) {
+        pc.status = nextStatus;
+      } else {
+        this.showToast('Failed to update status.');
+      }
     },
 
-    closeDetails() {
-      this.detailPc = null;
+    // ---- click-to-edit in the Data tab ----------------------------------
+
+    editableField(key) {
+      return EDITABLE_FIELDS[key] ?? null;
     },
 
-    detailValue(field, pc) {
-      return detailValue(field, pc);
+    isEditing(pc, key) {
+      return Boolean(this.editing) && this.editing.id === pc.id && this.editing.key === key;
     },
 
-    editableField(col) {
-      return EDITABLE_FIELDS[col.key] ?? null;
-    },
-
-    isEditing(pc, col) {
-      return Boolean(this.editing) && this.editing.id === pc.id && this.editing.key === col.key;
-    },
-
-    startEdit(pc, col) {
-      if (!this.editableField(col) || this.isEditing(pc, col)) return;
-      this.editing = { id: pc.id, key: col.key };
-      this.editValue = pc[col.key] ?? '';
+    startEdit(pc, key) {
+      if (!this.editableField(key) || this.isEditing(pc, key)) return;
+      this.editing = { id: pc.id, key };
+      this.editValue = pc[key] ?? '';
       this.editInvalid = false;
     },
 
@@ -361,9 +244,9 @@ export default function adminApp() {
      * refused: on Enter the input turns red and stays open, on blur the cell simply
      * reverts, so the stored value is never replaced with nothing.
      */
-    async commitEdit(pc, col, viaBlur = false) {
-      if (!this.isEditing(pc, col)) return; // blur after Enter would otherwise fire twice
-      const field = this.editableField(col);
+    async commitEdit(pc, key, viaBlur = false) {
+      if (!this.isEditing(pc, key)) return; // blur after Enter would otherwise fire twice
+      const field = this.editableField(key);
       const value = text(this.editValue);
 
       if (field.required && !value) {
@@ -372,7 +255,7 @@ export default function adminApp() {
         return;
       }
 
-      const previous = pc[col.key] ?? '';
+      const previous = pc[key] ?? '';
       if (value === String(previous)) {
         this.cancelEdit();
         return;
@@ -384,7 +267,7 @@ export default function adminApp() {
       const res = await fetch(`/api/pcs/${pc.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payloadFrom(pc, { [col.key]: next })),
+        body: JSON.stringify(payloadFrom(pc, { [key]: next })),
       }).catch(() => null);
 
       if (!res || !res.ok) {
@@ -394,7 +277,7 @@ export default function adminApp() {
         return;
       }
 
-      pc[col.key] = next;
+      pc[key] = next;
     },
 
     showToast(message) {
@@ -405,22 +288,7 @@ export default function adminApp() {
       }, 5000);
     },
 
-    async toggleStatus(pc) {
-      const nextStatus = pc.status === 'Active' ? 'Retired' : 'Active';
-      const payload = payloadFrom(pc, { status: nextStatus });
-
-      const res = await fetch(`/api/pcs/${pc.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        pc.status = nextStatus;
-      } else {
-        alert('Failed to update status.');
-      }
-    },
+    // ---- CSV import ------------------------------------------------------
 
     async importCsv(event) {
       const input = event.target;
@@ -445,9 +313,7 @@ export default function adminApp() {
         this.importResult = data;
 
         const listRes = await fetch('/api/pcs');
-        if (listRes.ok) {
-          this.pcs = await listRes.json();
-        }
+        if (listRes.ok) this.pcs = await listRes.json();
       } catch {
         this.importResult = { error: 'Network error during import.' };
       } finally {
@@ -460,5 +326,5 @@ export default function adminApp() {
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/admin/login';
     },
-  };
+  });
 }

@@ -1,0 +1,141 @@
+---
+// The Data tab: the same rows as a plain sheet. One field per column, gridlines
+// both ways, sticky heading row and frozen # / PC Name columns, so it reads and
+// scrolls the way Excel or Google Sheets does.
+//
+// For the admin this is also the fast edit surface: one cell is one field, so a
+// click edits exactly what you clicked — which the clubbed register view cannot do.
+import { ArrowUp, ArrowDown } from '@lucide/astro';
+
+interface Props {
+  /** Turns on click-to-edit for the admin-owned columns. */
+  admin?: boolean;
+}
+
+const { admin = false } = Astro.props;
+
+const head =
+  'sticky top-0 bg-slate-100 border-b border-r border-slate-300 px-2 py-1.5 text-left font-bold uppercase tracking-[0.05em] text-[10px] text-slate-600 whitespace-nowrap';
+const cell = 'border-b border-r border-slate-200 px-2 py-1 align-top group-hover:bg-indigo-50/40';
+const filterInput =
+  'w-full rounded-sm border border-slate-300 bg-white px-1 py-0.5 text-[10px] font-normal normal-case tracking-normal text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400';
+---
+
+<div class="flex-1 min-h-0 overflow-auto rounded-lg border border-slate-300 bg-white">
+  <table class="min-w-max border-separate border-spacing-0 text-[12px]">
+    <thead>
+      <tr>
+        <th class={`${head} sticky left-0 z-20 w-11 text-right`}>#</th>
+
+        <template x-for="(col, ci) in dataColumns" :key="col.key">
+          <th
+            class={`${head} z-10`}
+            :class="[
+              ci === 0 ? 'sticky left-11 z-20 min-w-[170px] max-w-[170px]' : (col.wide ? 'min-w-[220px] max-w-[320px]' : 'min-w-[92px]'),
+              editableField(col.key) ? 'bg-indigo-50 text-indigo-700 border-b-2 border-b-indigo-400' : '',
+            ]"
+          >
+            <button
+              type="button"
+              x-on:click="toggleSort(col.key)"
+              class="flex items-center gap-1 uppercase hover:text-slate-900"
+            >
+              <span x-text="col.label"></span>
+              <ArrowUp size={10} x-show="sortKey === col.key && sortDir === 'asc'" class="text-indigo-600" />
+              <ArrowDown size={10} x-show="sortKey === col.key && sortDir === 'desc'" class="text-indigo-600" />
+            </button>
+
+            <div class="mt-1" x-show="showFilters" x-cloak>
+              <template x-if="col.type === 'select'">
+                <select x-model="dataFilters[col.key]" class={filterInput}>
+                  <option value="All">All</option>
+                  <template x-for="opt in col.options" :key="opt">
+                    <option :value="opt" x-text="opt"></option>
+                  </template>
+                </select>
+              </template>
+              <template x-if="col.type !== 'select'">
+                <input type="text" x-model="dataFilters[col.key]" placeholder="…" class={filterInput} />
+              </template>
+            </div>
+          </th>
+        </template>
+      </tr>
+    </thead>
+
+    <tbody>
+      <template x-for="(pc, i) in filtered" :key="pc.id">
+        <tr class="group" x-on:click="select(pc.id)">
+          <td
+            class={`${cell} sticky left-0 z-10 text-right tabular-nums text-slate-400`}
+            :class="pc.id === selectedId ? 'bg-indigo-50' : 'bg-white'"
+            x-text="i + 1"
+          >
+          </td>
+
+          <template x-for="(col, ci) in dataColumns" :key="col.key">
+            <td
+              class={cell}
+              :class="[
+                ci === 0 ? 'sticky left-11 z-10 max-w-[170px] truncate' : (col.wide ? 'max-w-[320px] truncate' : 'whitespace-nowrap'),
+                pc.id === selectedId ? 'bg-indigo-50' : (ci === 0 ? 'bg-white' : ''),
+                col.align === 'right' ? 'text-right tabular-nums' : '',
+                col.mono ? 'font-mono text-[11px]' : '',
+                col.strong ? 'font-semibold text-slate-900' : 'text-slate-700',
+              ]"
+              :title="dataText(col, pc)"
+            >
+              {
+                admin ? (
+                  <Fragment>
+                    <template x-if="isEditing(pc, col.key)">
+                      <div class="min-w-[110px]">
+                        <template x-if="editableField(col.key).type === 'select'">
+                          <select
+                            x-model="editValue"
+                            x-init="$nextTick(() => $el.focus())"
+                            x-on:change="commitEdit(pc, col.key)"
+                            x-on:keydown.escape.prevent.stop="cancelEdit()"
+                            class="w-full rounded-sm border border-indigo-500 px-1 py-0.5 text-[12px] focus:outline-none"
+                          >
+                            <template x-for="opt in editableField(col.key).options" :key="opt">
+                              <option :value="opt" x-text="opt" />
+                            </template>
+                          </select>
+                        </template>
+                        <template x-if="editableField(col.key).type !== 'select'">
+                          <input
+                            type="text"
+                            x-model="editValue"
+                            x-init="$nextTick(() => { $el.focus(); $el.select(); })"
+                            x-on:keydown.enter.prevent="commitEdit(pc, col.key)"
+                            x-on:keydown.escape.prevent.stop="cancelEdit()"
+                            x-on:blur="commitEdit(pc, col.key, true)"
+                            class="w-full rounded-sm border px-1 py-0.5 text-[12px] focus:outline-none"
+                            :class="editInvalid ? 'border-rose-500 bg-rose-50' : 'border-indigo-500'"
+                          />
+                        </template>
+                      </div>
+                    </template>
+
+                    <template x-if="!isEditing(pc, col.key)">
+                      <span
+                        class="block truncate"
+                        :class="editableField(col.key) ? 'cursor-text -mx-1 px-1 rounded-sm hover:bg-white hover:ring-1 hover:ring-indigo-400' : ''"
+                        x-on:click="startEdit(pc, col.key)"
+                        x-on:dblclick.stop="openRecord(pc)"
+                        x-text="dataText(col, pc)"
+                      />
+                    </template>
+                  </Fragment>
+                ) : (
+                  <span class="block truncate" x-on:dblclick.stop="openRecord(pc)" x-text="dataText(col, pc)" />
+                )
+              }
+            </td>
+          </template>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</div>

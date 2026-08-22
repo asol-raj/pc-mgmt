@@ -1,0 +1,186 @@
+---
+// The reading view. Dense hairline rows, a serial number, and clubbed two-line
+// cells so the columns that matter sit at the front and nothing important hides
+// off the right edge.
+import { ArrowUp, ArrowDown, ChevronsUpDown, Pencil, Trash2, RotateCw } from '@lucide/astro';
+
+interface Props {
+  /** Adds the row actions column and leaves row clicks to selection, not the drawer. */
+  admin?: boolean;
+}
+
+const { admin = false } = Astro.props;
+
+const headCell =
+  'sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-3 py-2 text-left align-bottom';
+const sortButton =
+  'flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.06em] text-slate-500 hover:text-slate-900 whitespace-nowrap';
+const filterInput =
+  'w-full rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-normal normal-case tracking-normal text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400';
+---
+
+<div class="flex-1 min-h-0 overflow-auto rounded-lg border border-slate-200 bg-white">
+  <table class="w-full min-w-[1100px] table-fixed border-separate border-spacing-0">
+    <thead>
+      <tr>
+        <th class={`${headCell} w-11 text-right`}>
+          <span class="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400">#</span>
+        </th>
+
+        <template x-for="col in columns" :key="col.key">
+          <th class={headCell} :class="col.width">
+            <button type="button" x-on:click="toggleSort(col.key)" class={sortButton}>
+              <span x-text="col.label"></span>
+              <ChevronsUpDown size={11} x-show="sortKey !== col.key" class="text-slate-300" />
+              <ArrowUp size={11} x-show="sortKey === col.key && sortDir === 'asc'" class="text-indigo-600" />
+              <ArrowDown size={11} x-show="sortKey === col.key && sortDir === 'desc'" class="text-indigo-600" />
+            </button>
+
+            <div class="mt-1.5" x-show="showFilters" x-cloak>
+              <template x-if="col.type === 'select'">
+                <select x-model="colFilters[col.key]" class={filterInput}>
+                  <option value="All">All</option>
+                  <template x-for="opt in col.options" :key="opt">
+                    <option :value="opt" x-text="opt"></option>
+                  </template>
+                </select>
+              </template>
+              <template x-if="col.type !== 'select'">
+                <input type="text" x-model="colFilters[col.key]" placeholder="Filter…" class={filterInput} />
+              </template>
+            </div>
+          </th>
+        </template>
+
+        {
+          admin && (
+            <th class={`${headCell} w-28 text-right`}>
+              <span class="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400">Actions</span>
+            </th>
+          )
+        }
+      </tr>
+    </thead>
+
+    <tbody>
+      <template x-for="(pc, i) in filtered" :key="pc.id">
+        <tr
+          x-on:click={admin ? 'select(pc.id)' : 'openRecord(pc)'}
+          class="group cursor-pointer"
+          :class="pc.id === selectedId ? 'bg-indigo-50/60' : 'hover:bg-slate-50/80'"
+        >
+          <td
+            class="border-b border-l-2 border-b-slate-100 px-2 py-1.5 text-right align-top text-[11px] tabular-nums text-slate-400"
+            :class="pc.id === selectedId ? 'border-l-indigo-500' : 'border-l-transparent'"
+            x-text="i + 1"
+          >
+          </td>
+
+          <template x-for="col in columns" :key="col.key">
+            <td class="border-b border-slate-100 px-3 py-1.5 align-top">
+              <!-- Status / performance read as one pill, no second line -->
+              <template x-if="col.badge">
+                <span
+                  class="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
+                  :class="col.badge === 'status' ? statusBadgeClass(pc.status) : performanceBadgeClass(pc.performance)"
+                  x-text="cellPrimary(col, pc)"
+                ></span>
+              </template>
+
+              <template x-if="!col.badge">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <!-- The PC name is the handle for the full record -->
+                    <template x-if="col.opensRecord">
+                      <button
+                        type="button"
+                        x-on:click.stop="openRecord(pc)"
+                        class="truncate text-[13px] font-semibold text-slate-900 hover:text-indigo-700 hover:underline decoration-indigo-300 underline-offset-2 text-left"
+                        title="Open the full record"
+                        x-text="cellPrimary(col, pc)"
+                      ></button>
+                    </template>
+                    <!-- Click-to-edit, for the admin and only where one line means one field -->
+                    <template x-if="!col.opensRecord && isEditing(pc, col.editKey)">
+                      <input
+                        type="text"
+                        x-model="editValue"
+                        x-init="$nextTick(() => { $el.focus(); $el.select(); })"
+                        x-on:click.stop
+                        x-on:keydown.enter.prevent="commitEdit(pc, col.editKey)"
+                        x-on:keydown.escape.prevent.stop="cancelEdit()"
+                        x-on:blur="commitEdit(pc, col.editKey, true)"
+                        class="w-full rounded border px-1.5 py-0.5 text-[13px] focus:outline-none focus:ring-2"
+                        :class="editInvalid ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-200' : 'border-indigo-400 focus:ring-indigo-300'"
+                      />
+                    </template>
+
+                    <template x-if="!col.opensRecord && !isEditing(pc, col.editKey)">
+                      <span
+                        class="truncate text-[13px] text-slate-800"
+                        :class="[col.monoPrimary ? 'font-mono text-[12px]' : '', editableField(col.editKey) ? 'cursor-text -mx-1 px-1 rounded hover:bg-white hover:ring-1 hover:ring-indigo-300' : '']"
+                        :title="editableField(col.editKey) ? 'Click to edit' : cellPrimary(col, pc)"
+                        x-on:click="if (editableField(col.editKey)) { $event.stopPropagation(); startEdit(pc, col.editKey) }"
+                        x-text="cellPrimary(col, pc)"
+                      ></span>
+                    </template>
+
+                    <span
+                      x-show="cellTag(col, pc)"
+                      x-cloak
+                      class="shrink-0 rounded bg-slate-100 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-500"
+                      x-text="cellTag(col, pc)"
+                    ></span>
+                  </div>
+
+                  <div
+                    x-show="cellSecondary(col, pc)"
+                    x-cloak
+                    class="truncate text-[11px] leading-tight text-slate-400 mt-0.5"
+                    :class="col.monoSecondary ? 'font-mono' : ''"
+                    :title="cellSecondary(col, pc)"
+                    x-text="cellSecondary(col, pc)"
+                  >
+                  </div>
+                </div>
+              </template>
+            </td>
+          </template>
+
+          {
+            admin && (
+              <td class="border-b border-slate-100 px-2 py-1.5 align-top">
+                <div class="flex items-center justify-end gap-0.5 opacity-40 group-hover:opacity-100 transition">
+                  <button
+                    type="button"
+                    x-on:click.stop="openEdit(pc)"
+                    title="Edit this PC"
+                    class="rounded p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-900"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    x-on:click.stop="toggleStatus(pc)"
+                    :title="pc.status === 'Active' ? 'Retire this PC' : 'Reactivate this PC'"
+                    class="rounded p-1.5 text-slate-500 hover:bg-slate-200 hover:text-indigo-700"
+                  >
+                    <RotateCw size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    x-on:click.stop="remove(pc)"
+                    title="Delete this PC"
+                    class="rounded p-1.5 text-slate-500 hover:bg-rose-100 hover:text-rose-700"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </td>
+            )
+          }
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</div>

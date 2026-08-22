@@ -1,0 +1,127 @@
+---
+// One compact bar carries everything that used to need a whole sidebar: identity,
+// the view tabs, search, the counts and the page's own actions. The table below it
+// gets the rest of the window.
+import { MonitorCog, Search, SlidersHorizontal, RotateCcw, Table2, LayoutList } from '@lucide/astro';
+
+interface Props {
+  /** Small caption above the title, e.g. "Office IT". */
+  eyebrow: string;
+  title: string;
+  /** Renders the admin accent instead of the public one. */
+  admin?: boolean;
+}
+
+const { eyebrow, title, admin = false } = Astro.props;
+---
+
+<header class="sticky top-0 z-30 shrink-0 border-b border-slate-200 bg-white">
+  <div class="flex items-center gap-3 px-4 h-14">
+    <div class="flex items-center gap-2.5 shrink-0">
+      <div
+        class:list={[
+          'w-8 h-8 rounded-lg text-white flex items-center justify-center shrink-0',
+          admin ? 'bg-slate-900' : 'bg-indigo-600',
+        ]}
+      >
+        <MonitorCog size={17} />
+      </div>
+      <div class="leading-none">
+        <p
+          class:list={[
+            'text-[10px] font-semibold uppercase tracking-[0.08em]',
+            admin ? 'text-slate-500' : 'text-indigo-500',
+          ]}
+        >
+          {eyebrow}
+        </p>
+        <h1 class="text-[15px] font-bold text-slate-900 mt-0.5">{title}</h1>
+      </div>
+    </div>
+
+    <div class="h-6 w-px bg-slate-200 shrink-0 ml-1"></div>
+
+    <!-- View tabs: the same rows, read as a register or as a sheet -->
+    <div class="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 shrink-0">
+      <button
+        type="button"
+        x-on:click="view = 'register'"
+        class="flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold transition"
+        :class="view === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+      >
+        <LayoutList size={13} />
+        Register
+      </button>
+      <button
+        type="button"
+        x-on:click="view = 'data'"
+        class="flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold transition"
+        :class="view === 'data' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+      >
+        <Table2 size={13} />
+        Data
+      </button>
+    </div>
+
+    <div class="relative flex-1 min-w-[140px] max-w-sm">
+      <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <input
+        type="text"
+        x-model="search"
+        placeholder="Search name, tag, user, desk, ext, IP…"
+        class="w-full rounded-lg border border-slate-300 bg-slate-50 pl-8 pr-3 py-1.5 text-[13px] placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+      />
+    </div>
+
+    <button
+      type="button"
+      x-on:click="showFilters = !showFilters"
+      title="Show a filter box under every column heading"
+      class="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold shrink-0 transition"
+      :class="showFilters || activeFilterCount ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-300 text-slate-600 hover:bg-slate-50'"
+    >
+      <SlidersHorizontal size={13} />
+      Filters
+      <span
+        x-show="activeFilterCount"
+        x-text="activeFilterCount"
+        class="rounded-full bg-indigo-600 text-white text-[10px] font-bold px-1.5 leading-4"></span>
+    </button>
+
+    <button
+      type="button"
+      x-on:click="resetFilters()"
+      x-show="search || activeFilterCount || sortKey"
+      title="Clear search, filters and sorting"
+      class="text-slate-400 hover:text-slate-700 shrink-0"
+    >
+      <RotateCcw size={15} />
+    </button>
+
+    <div class="flex-1"></div>
+
+    <!-- Counts, as one quiet line rather than a panel of cards -->
+    <div class="hidden lg:flex items-center gap-2 text-[12px] text-slate-500 shrink-0 tabular-nums">
+      <span class="whitespace-nowrap">
+        <span class="font-semibold text-slate-900" x-text="filtered.length"></span><span
+          x-show="filtered.length !== totalCount"
+        > of <span x-text="totalCount"></span></span> PCs
+      </span>
+      <span class="text-slate-300">|</span>
+      <span class="flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        <span class="font-semibold text-slate-700" x-text="activeCount"></span> active
+      </span>
+      <span class="flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+        <span class="font-semibold text-slate-700" x-text="retiredCount"></span> retired
+      </span>
+    </div>
+
+    <div class="h-6 w-px bg-slate-200 shrink-0"></div>
+
+    <div class="flex items-center gap-2 shrink-0">
+      <slot />
+    </div>
+  </div>
+</header>

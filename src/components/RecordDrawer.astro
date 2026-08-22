@@ -1,0 +1,90 @@
+---
+// The whole record for one PC, as a panel that slides in over the right edge.
+// It replaces the old permanently-docked side panels: the table keeps the full
+// width of the window until you actually ask for a record.
+import { X, Pencil, RotateCw, Trash2 } from '@lucide/astro';
+
+interface Props {
+  /** Adds Edit / Retire / Delete to the drawer header. */
+  admin?: boolean;
+}
+
+const { admin = false } = Astro.props;
+---
+
+<template x-if="drawerPc">
+  <div class="fixed inset-0 z-40 flex justify-end" x-on:keydown.escape.window="closeRecord()">
+    <div class="absolute inset-0 bg-slate-900/25" x-on:click="closeRecord()"></div>
+
+    <aside class="relative w-full max-w-[420px] h-full bg-white shadow-2xl flex flex-col">
+      <div class="shrink-0 border-b border-slate-200 px-5 py-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-base font-bold text-slate-900 truncate" x-text="drawerPc.name"></h2>
+            <p class="text-[11px] font-mono text-slate-500 mt-0.5" x-text="drawerPc.asset_tag"></p>
+          </div>
+          <button type="button" x-on:click="closeRecord()" class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X size={17} />
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1.5 mt-3">
+          <span
+            class="rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
+            :class="statusBadgeClass(drawerPc.status)"
+            x-text="drawerPc.status"
+          ></span>
+          <span
+            class="rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
+            :class="performanceBadgeClass(drawerPc.performance)"
+            x-text="drawerPc.performance"
+          ></span>
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600" x-text="drawerPc.machine_type"></span>
+        </div>
+
+        {
+          admin && (
+            <div class="flex items-center gap-2 mt-3">
+              <button
+                type="button"
+                x-on:click="const pc = drawerPc; closeRecord(); openEdit(pc)"
+                class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-slate-700"
+              >
+                <Pencil size={12} />
+                Edit
+              </button>
+              <button
+                type="button"
+                x-on:click="toggleStatus(drawerPc)"
+                class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                <RotateCw size={12} />
+                <span x-text="drawerPc.status === 'Active' ? 'Retire' : 'Reactivate'" />
+              </button>
+              <button
+                type="button"
+                x-on:click="const pc = drawerPc; remove(pc)"
+                title="Delete this PC"
+                class="rounded-lg border border-slate-300 p-1.5 text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )
+        }
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-5 py-1">
+        <template x-for="field in detailFields" :key="field.key">
+          <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-2 last:border-0">
+            <span class="w-36 shrink-0 pt-px text-[11px] text-slate-500" x-text="field.label"></span>
+            <span
+              class="min-w-0 break-words text-right text-[12.5px] font-medium text-slate-900"
+              x-text="detailValue(field, drawerPc)"
+            ></span>
+          </div>
+        </template>
+      </div>
+    </aside>
+  </div>
+</template>
