@@ -29,6 +29,9 @@ export const DETAIL_FIELDS = [
   { key: 'performance', label: 'Performance', badge: 'performance' },
   { key: 'softwares', label: 'Softwares Installed' },
   { key: 'assigned_users', label: 'Login Accounts' },
+  { key: 'audio_output', label: 'Audio / Speaker' },
+  { key: 'microphone', label: 'Microphone' },
+  { key: 'camera', label: 'Camera' },
   { key: 'comments', label: 'Comments' },
   { key: 'machine_id', label: 'Machine ID' },
   {

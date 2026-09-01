@@ -1,5 +1,6 @@
 import { parseSystemInfo } from './systeminfo.js';
 import {
+  DEVICE_HEALTH_VALUES,
   MACHINE_TYPE_VALUES,
   STORAGE_TYPE_VALUES,
   OS_VALUES,
@@ -17,6 +18,11 @@ const DETECTED_ENUMS: Record<string, string[]> = {
   os: OS_VALUES,
   os_edition: OS_EDITION_VALUES,
   ip_config: IP_CONFIG_VALUES,
+  // Multimedia hardware the machine checks on every run — a mic that gets disabled
+  // should show up in the register the same way a changed IP does.
+  audio_output: DEVICE_HEALTH_VALUES,
+  microphone: DEVICE_HEALTH_VALUES,
+  camera: DEVICE_HEALTH_VALUES,
 };
 
 // Column lengths from db/schema.sql — checked here so a too-long value comes

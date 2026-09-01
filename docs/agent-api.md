@@ -52,6 +52,9 @@ Windows host name).
 | `softwares` | string (≤4000) | Comma-separated list of installed software |
 | `location` | string (≤150) | **Only used when the PC is new** — the agent does not send it |
 | `assigned_users` | string (≤255) | Comma-separated local Windows accounts that can sign in, e.g. `cfc, jatin, raj` |
+| `audio_output` | enum | `Working` \| `Disabled` \| `Faulty` \| `None` — see below |
+| `microphone` | enum | `Working` \| `Disabled` \| `Faulty` \| `None` — see below |
+| `camera` | enum | `Working` \| `Disabled` \| `Faulty` \| `None` — see below |
 | `systeminfo` | string | Raw stdout of the Windows `systeminfo` command — see below |
 
 ### Shortcut: post the raw `systeminfo` output
@@ -62,6 +65,28 @@ version, Windows edition, IP address, and Static/Dynamic (from `DHCP Enabled`).
 
 Any field you also send explicitly wins over the parsed value, so mixing is fine —
 e.g. post `systeminfo` plus your own `asset_tag` and `teamviewer_id`.
+
+## Multimedia hardware — `audio_output`, `microphone`, `camera`
+
+Each answers "does this PC have working audio / mic / camera hardware", which is a
+health state rather than a yes/no:
+
+| Value | Meaning |
+|---|---|
+| `Working` | Present, and Windows reports no problem with it |
+| `Disabled` | Present, but switched off — Device Manager problem code `22` |
+| `Faulty` | Present, but Windows reports a driver or device problem |
+| `None` | Checked, and the machine has no such device |
+
+Omitting a field leaves the column `NULL`, which means *never reported* — an older
+agent build, or a PC an admin added by hand. That is deliberately distinct from
+`None`, which is a positive statement that the machine was checked.
+
+**`audio_output` does not mean a speaker is plugged in.** Windows cannot tell whether
+anything is connected to the analog jack on a desktop tower, so no software can report
+that. `Working` means the audio hardware is present and healthy, which is the thing
+that is actually actionable — a disabled or broken sound device is a fault to fix, an
+unplugged speaker is not something the register can see.
 
 ## `machine_id` — how duplicates are prevented
 

@@ -13,6 +13,10 @@ const IPV6_RE = /^[0-9a-f:]+$/i;
 export const CONDITION_VALUES = ['New', 'Refurbished'];
 export const PERFORMANCE_VALUES = ['Slow', 'Average', 'Good', 'Excellent'];
 export const STATUS_VALUES = ['Active', 'Retired'];
+// Multimedia hardware health. 'None' is a positive "checked, not present"; an empty
+// value means never reported and stays NULL.
+export const DEVICE_HEALTH_VALUES = ['Working', 'Disabled', 'Faulty', 'None'];
+export const DEVICE_HEALTH_FIELDS = ['audio_output', 'microphone', 'camera'] as const;
 
 export function isValidIpAddress(value: string): boolean {
   return IPV4_RE.test(value) || (value.includes(':') && IPV6_RE.test(value));
@@ -67,6 +71,19 @@ export function validatePcInput(body: any): { data?: PcInput; error?: string } {
     storage_type = body.storage_type;
   }
 
+  const multimedia: Record<string, string | null> = {};
+  for (const field of DEVICE_HEALTH_FIELDS) {
+    const value = body[field] == null ? '' : String(body[field]).trim();
+    if (!value) {
+      multimedia[field] = null;
+      continue;
+    }
+    if (!DEVICE_HEALTH_VALUES.includes(value)) {
+      return { error: `${field} must be one of ${DEVICE_HEALTH_VALUES.join(', ')}` };
+    }
+    multimedia[field] = value;
+  }
+
   const ram_gb = body.ram_gb === '' || body.ram_gb == null ? null : Number(body.ram_gb);
   if (ram_gb !== null && (!Number.isFinite(ram_gb) || ram_gb < 0)) {
     return { error: 'ram_gb must be a positive number' };
@@ -95,6 +112,9 @@ export function validatePcInput(body: any): { data?: PcInput; error?: string } {
       performance: body.performance,
       softwares: body.softwares ? String(body.softwares).trim() : null,
       assigned_users: body.assigned_users ? String(body.assigned_users).trim() : null,
+      audio_output: multimedia.audio_output,
+      microphone: multimedia.microphone,
+      camera: multimedia.camera,
       comments: body.comments ? String(body.comments).trim() : null,
     },
   };

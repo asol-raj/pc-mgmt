@@ -6,6 +6,12 @@ export type IpConfig = 'Static' | 'Dynamic';
 export type ConditionStatus = 'New' | 'Refurbished';
 export type Performance = 'Slow' | 'Average' | 'Good' | 'Excellent';
 export type Status = 'Active' | 'Retired';
+/**
+ * Health of one piece of multimedia hardware. Not a yes/no: the office needs to tell
+ * "this PC has no camera" apart from "it has one and somebody disabled it".
+ * `null` means never reported, which is different again from 'None'.
+ */
+export type DeviceHealth = 'Working' | 'Disabled' | 'Faulty' | 'None';
 
 export interface Pc {
   id: number;
@@ -31,6 +37,9 @@ export interface Pc {
   performance: Performance;
   softwares: string | null;
   assigned_users: string | null;
+  audio_output: DeviceHealth | null;
+  microphone: DeviceHealth | null;
+  camera: DeviceHealth | null;
   comments: string | null;
   last_reported_at: string | null;
   created_at: string;

@@ -34,6 +34,27 @@ export function performanceBadgeClass(performance) {
   return 'bg-slate-100 text-slate-600 ring-slate-200';
 }
 
+// The three multimedia columns, in the order they read best on screen.
+const MULTIMEDIA = [
+  { key: 'audio_output', label: 'Audio' },
+  { key: 'microphone', label: 'Mic' },
+  { key: 'camera', label: 'Camera' },
+];
+
+/** What the PC has and Windows is happy with — the reassuring half of the cell. */
+const multimediaWorking = (pc) =>
+  MULTIMEDIA.filter((d) => pc[d.key] === 'Working').map((d) => d.label);
+
+/**
+ * Anything that needs a human: disabled, faulty, or genuinely absent. A null column
+ * is skipped — that PC has never reported, which is not the same as having no device
+ * and must not be shown as a problem.
+ */
+const multimediaProblems = (pc) =>
+  MULTIMEDIA.filter((d) => pc[d.key] && pc[d.key] !== 'Working').map(
+    (d) => `${d.label}: ${pc[d.key] === 'None' ? 'not present' : String(pc[d.key]).toLowerCase()}`,
+  );
+
 const storageOf = (pc) => [clean(pc.storage_capacity), clean(pc.storage_type)].filter(Boolean).join(' ');
 const osOf = (pc) => [pc.os, clean(pc.os_edition)].filter(Boolean).join(' ');
 
@@ -50,7 +71,7 @@ export const REGISTER_COLUMNS = [
     key: 'name',
     label: 'PC',
     type: 'text',
-    width: 'w-[15%] min-w-[150px]',
+    width: 'w-[14%] min-w-[150px]',
     opensRecord: true,
     primary: (pc) => pc.name,
     secondary: (pc) => pc.asset_tag,
@@ -62,7 +83,7 @@ export const REGISTER_COLUMNS = [
     key: 'used_by',
     label: 'Used By',
     type: 'text',
-    width: 'w-[13%] min-w-[130px]',
+    width: 'w-[12%] min-w-[130px]',
     // The first line is one plain field, so the admin can edit it in place here.
     // Clubbed columns like Specs deliberately have no editKey: a click could not
     // tell which of CPU / RAM / storage / OS you meant.
@@ -76,7 +97,7 @@ export const REGISTER_COLUMNS = [
     key: 'location',
     label: 'Location',
     type: 'text',
-    width: 'w-[13%] min-w-[130px]',
+    width: 'w-[12%] min-w-[130px]',
     editKey: 'location',
     primary: (pc) => pc.location,
     secondary: (pc) => (clean(pc.extension_number) ? `Ext ${clean(pc.extension_number)}` : null),
@@ -87,7 +108,7 @@ export const REGISTER_COLUMNS = [
     key: 'specs',
     label: 'Specs',
     type: 'text',
-    width: 'w-[21%] min-w-[210px]',
+    width: 'w-[18%] min-w-[200px]',
     primary: (pc) => clean(pc.cpu) ?? '—',
     secondary: (pc) =>
       joinDot([pc.ram_gb ? `${pc.ram_gb} GB` : null, storageOf(pc) || null, osOf(pc) || null]) || null,
@@ -98,7 +119,7 @@ export const REGISTER_COLUMNS = [
     key: 'network',
     label: 'Network',
     type: 'text',
-    width: 'w-[14%] min-w-[145px]',
+    width: 'w-[12%] min-w-[140px]',
     primary: (pc) => clean(pc.ip_address) ?? '—',
     monoPrimary: true,
     tag: (pc) => (pc.ip_config === 'Static' ? 'Static' : null),
@@ -108,11 +129,26 @@ export const REGISTER_COLUMNS = [
     search: (pc) => joinDot([pc.ip_address, pc.ip_config, pc.teamviewer_id]),
   },
   {
+    key: 'multimedia',
+    label: 'Multimedia',
+    type: 'text',
+    width: 'w-[12%] min-w-[135px]',
+    // No editKey: three separate fields live here, so a click could not tell which
+    // one you meant — the same reason Specs is read-only.
+    primary: (pc) => multimediaWorking(pc).join(' · ') || '—',
+    secondary: (pc) => multimediaProblems(pc).join(' · ') || null,
+    // Sorts the fully-working machines to one end and the ones needing attention to
+    // the other, which is the only ordering anyone wants from this column.
+    sortValue: (pc) => `${multimediaProblems(pc).length}:${multimediaWorking(pc).join(',')}`,
+    search: (pc) =>
+      joinDot([...multimediaWorking(pc), ...multimediaProblems(pc)]),
+  },
+  {
     key: 'machine_type',
     label: 'Type',
     type: 'select',
     options: ['Desktop', 'Laptop', 'AIO'],
-    width: 'w-[11%] min-w-[110px]',
+    width: 'w-[10%] min-w-[105px]',
     primary: (pc) => pc.machine_type,
     secondary: (pc) =>
       joinDot([clean(pc.brand), pc.condition_status === 'Refurbished' ? 'Refurb' : null]) || null,
@@ -167,6 +203,9 @@ export const DATA_COLUMNS = [
   { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Retired'] },
   { key: 'performance', label: 'Performance', type: 'select', options: ['Slow', 'Average', 'Good', 'Excellent'] },
   { key: 'assigned_users', label: 'Login Accounts' },
+  { key: 'audio_output', label: 'Audio', type: 'select', options: ['Working', 'Disabled', 'Faulty', 'None'] },
+  { key: 'microphone', label: 'Mic', type: 'select', options: ['Working', 'Disabled', 'Faulty', 'None'] },
+  { key: 'camera', label: 'Camera', type: 'select', options: ['Working', 'Disabled', 'Faulty', 'None'] },
   { key: 'softwares', label: 'Softwares', wide: true },
   { key: 'comments', label: 'Comments', wide: true },
   {

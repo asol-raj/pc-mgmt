@@ -20,6 +20,9 @@ const EXPORT_COLUMNS = [
   'performance',
   'softwares',
   'assigned_users',
+  'audio_output',
+  'microphone',
+  'camera',
   'comments',
 ] as const;
 
