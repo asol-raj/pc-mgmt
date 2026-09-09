@@ -1,0 +1,53 @@
+---
+// Horizontal bars, one per category, with the count on the right. The bar is a plain
+// div scaled to the largest category, so the longest bar always reaches full width
+// and the others read against it.
+interface Slice {
+  label: string;
+  count: number;
+  share: number;
+  color: string;
+}
+
+interface Props {
+  slices: Slice[];
+  /** What one unit is called, for the hover title. */
+  noun?: string;
+  /** Show at most this many rows; the rest fold into "Others". */
+  max?: number;
+}
+
+const { slices, noun = 'PCs', max = 6 } = Astro.props;
+
+let rows = slices;
+if (slices.length > max) {
+  const rest = slices.slice(max - 1);
+  rows = [
+    ...slices.slice(0, max - 1),
+    {
+      label: `${rest.length} others`,
+      count: rest.reduce((sum, s) => sum + s.count, 0),
+      share: rest.reduce((sum, s) => sum + s.share, 0),
+      color: '#cbd5e1',
+    },
+  ];
+}
+const largest = Math.max(1, ...rows.map((r) => r.count));
+---
+
+<ul class="flex flex-col gap-2.5">
+  {
+    rows.map((row) => (
+      <li class="flex items-center gap-3" title={`${row.label}: ${row.count} ${noun} (${Math.round(row.share * 100)}%)`}>
+        <span class="w-24 shrink-0 truncate text-[12px] font-medium text-slate-600">{row.label}</span>
+        <span class="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+          <span
+            class="block h-full rounded-full"
+            style={`width:${Math.max(3, (row.count / largest) * 100)}%;background:${row.color}`}
+          />
+        </span>
+        <span class="w-8 shrink-0 text-right text-[12px] font-bold tabular-nums text-slate-900">{row.count}</span>
+      </li>
+    ))
+  }
+</ul>

@@ -1,0 +1,74 @@
+---
+// A ring chart drawn with plain SVG strokes: one circle per slice, each given
+// pathLength=100 so its dash array is simply "share, rest" and its offset is where
+// the previous slices ended. No chart library, nothing to load on the LAN.
+interface Slice {
+  label: string;
+  count: number;
+  share: number;
+  color: string;
+}
+
+interface Props {
+  slices: Slice[];
+  /** Big number in the middle of the ring; leave it out for a bare ring. */
+  value?: string | number;
+  /** Small caption under that number, also the accessible label. */
+  caption: string;
+  size?: number;
+  thickness?: number;
+}
+
+const { slices, value, caption, size = 150, thickness = 16 } = Astro.props;
+
+const radius = 50 - thickness / 2 / (size / 100);
+const rings = [];
+let offset = 0;
+for (const slice of slices) {
+  const length = slice.share * 100;
+  rings.push({ ...slice, length, offset });
+  offset += length;
+}
+---
+
+<svg
+  viewBox="0 0 100 100"
+  width={size}
+  height={size}
+  role="img"
+  aria-label={`${caption}: ${slices.map((s) => `${s.label} ${s.count}`).join(', ')}`}
+  class="shrink-0"
+>
+  <circle cx="50" cy="50" r={radius} fill="none" stroke="#e2e8f0" stroke-width={(thickness / size) * 100}></circle>
+  {
+    rings.map((ring) => (
+      <circle
+        cx="50"
+        cy="50"
+        r={radius}
+        fill="none"
+        stroke={ring.color}
+        stroke-width={(thickness / size) * 100}
+        stroke-linecap="butt"
+        pathLength="100"
+        stroke-dasharray={`${Math.max(ring.length - 0.6, 0)} ${100 - Math.max(ring.length - 0.6, 0)}`}
+        stroke-dashoffset={-(ring.offset + 0.3)}
+        transform="rotate(-90 50 50)"
+      >
+        <title>{`${ring.label}: ${ring.count} (${Math.round(ring.share * 100)}%)`}</title>
+      </circle>
+    ))
+  }
+  {
+    value !== undefined && value !== null && (
+      <>
+        <text x="50" y="49" text-anchor="middle" font-size="22" font-weight="800" fill="#0f172a" dominant-baseline="central">
+          {value}
+        </text>
+        <text x="50" y="66" text-anchor="middle" font-size="7.5" font-weight="600" fill="#64748b" letter-spacing="0.08em">
+          {String(caption).toUpperCase()}
+        </text>
+      </>
+    )
+  }
+</svg>

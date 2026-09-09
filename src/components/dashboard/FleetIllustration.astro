@@ -1,0 +1,141 @@
+---
+// The hero picture: a desktop, a laptop and an all-in-one on one small network,
+// drawn by hand as SVG so it scales to any screen and needs no image file. Colours
+// are mostly white at varying opacity so it sits on the indigo banner; the only
+// solid colours are the little status lights and the "all good" check.
+interface Props {
+  class?: string;
+}
+const { class: className = '' } = Astro.props;
+---
+
+<svg viewBox="0 0 560 340" class={className} role="img" aria-label="Office PCs connected on one network" fill="none">
+  <defs>
+    <linearGradient id="fi-screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"></stop>
+      <stop offset="1" stop-color="#e0e7ff"></stop>
+    </linearGradient>
+    <linearGradient id="fi-glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"></stop>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"></stop>
+    </linearGradient>
+    <pattern id="fi-dots" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#ffffff" fill-opacity="0.22"></circle>
+    </pattern>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="560" height="340" fill="url(#fi-dots)"></rect>
+  <circle cx="320" cy="150" r="150" fill="url(#fi-glow)"></circle>
+  <circle cx="110" cy="260" r="90" fill="#ffffff" fill-opacity="0.05"></circle>
+
+  <!-- network: hub at the bottom, dotted links up to each machine -->
+  <g stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.6" stroke-dasharray="2 6" stroke-linecap="round">
+    <path d="M 300 282 C 300 262, 110 270, 110 250"></path>
+    <path d="M 300 282 L 300 232"></path>
+    <path d="M 300 282 C 300 262, 512 282, 512 268"></path>
+  </g>
+  <g>
+    <rect x="250" y="282" width="100" height="24" rx="7" fill="#ffffff" fill-opacity="0.95"></rect>
+    <circle cx="266" cy="294" r="3" fill="#10b981"></circle>
+    <circle cx="278" cy="294" r="3" fill="#10b981"></circle>
+    <circle cx="290" cy="294" r="3" fill="#f59e0b"></circle>
+    <rect x="308" y="291" width="30" height="6" rx="3" fill="#c7d2fe"></rect>
+    <path d="M 262 282 L 258 268" stroke="#ffffff" stroke-opacity="0.9" stroke-width="2.4" stroke-linecap="round"></path>
+    <path d="M 338 282 L 342 268" stroke="#ffffff" stroke-opacity="0.9" stroke-width="2.4" stroke-linecap="round"></path>
+  </g>
+  <!-- wifi arcs -->
+  <g stroke="#ffffff" stroke-opacity="0.8" stroke-width="2.2" stroke-linecap="round" fill="none">
+    <path d="M 372 274 a 12 12 0 0 1 16 0"></path>
+    <path d="M 365 266 a 22 22 0 0 1 30 0"></path>
+    <circle cx="380" cy="282" r="1.8" fill="#ffffff" stroke="none"></circle>
+  </g>
+
+  <!-- desktop monitor -->
+  <g>
+    <rect x="190" y="58" width="222" height="146" rx="12" fill="#0f172a" fill-opacity="0.85" stroke="#ffffff" stroke-opacity="0.35"></rect>
+    <rect x="201" y="69" width="200" height="124" rx="7" fill="url(#fi-screen)"></rect>
+    <!-- mini dashboard on the screen -->
+    <rect x="201" y="69" width="200" height="16" rx="7" fill="#4f46e5"></rect>
+    <rect x="201" y="78" width="200" height="7" fill="#4f46e5"></rect>
+    <circle cx="212" cy="77" r="2.6" fill="#ffffff" fill-opacity="0.9"></circle>
+    <rect x="220" y="75" width="36" height="4" rx="2" fill="#ffffff" fill-opacity="0.8"></rect>
+    <rect x="211" y="93" width="54" height="30" rx="5" fill="#ffffff" stroke="#c7d2fe"></rect>
+    <rect x="273" y="93" width="54" height="30" rx="5" fill="#ffffff" stroke="#c7d2fe"></rect>
+    <rect x="335" y="93" width="54" height="30" rx="5" fill="#ffffff" stroke="#c7d2fe"></rect>
+    <rect x="217" y="99" width="20" height="4" rx="2" fill="#94a3b8"></rect>
+    <rect x="217" y="108" width="30" height="8" rx="2" fill="#4f46e5"></rect>
+    <rect x="279" y="99" width="20" height="4" rx="2" fill="#94a3b8"></rect>
+    <rect x="279" y="108" width="24" height="8" rx="2" fill="#8b5cf6"></rect>
+    <rect x="341" y="99" width="20" height="4" rx="2" fill="#94a3b8"></rect>
+    <rect x="341" y="108" width="34" height="8" rx="2" fill="#10b981"></rect>
+    <!-- bar chart -->
+    <g fill="#4f46e5">
+      <rect x="214" y="160" width="12" height="24" rx="2"></rect>
+      <rect x="232" y="146" width="12" height="38" rx="2"></rect>
+      <rect x="250" y="153" width="12" height="31" rx="2" fill="#8b5cf6"></rect>
+      <rect x="268" y="138" width="12" height="46" rx="2"></rect>
+      <rect x="286" y="150" width="12" height="34" rx="2" fill="#0ea5e9"></rect>
+      <rect x="304" y="132" width="12" height="52" rx="2"></rect>
+    </g>
+    <!-- trend line -->
+    <path d="M 335 178 L 350 168 L 362 172 L 375 152 L 389 146" stroke="#10b981" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="389" cy="146" r="3.2" fill="#10b981" stroke="#ffffff" stroke-width="1.5"></circle>
+    <!-- stand -->
+    <rect x="290" y="204" width="22" height="20" fill="#ffffff" fill-opacity="0.85"></rect>
+    <rect x="248" y="223" width="106" height="9" rx="4.5" fill="#ffffff" fill-opacity="0.9"></rect>
+  </g>
+
+  <!-- tower beside the monitor -->
+  <g>
+    <rect x="420" y="112" width="48" height="120" rx="7" fill="#0f172a" fill-opacity="0.85" stroke="#ffffff" stroke-opacity="0.35"></rect>
+    <rect x="429" y="124" width="30" height="3" rx="1.5" fill="#ffffff" fill-opacity="0.5"></rect>
+    <rect x="429" y="132" width="30" height="3" rx="1.5" fill="#ffffff" fill-opacity="0.5"></rect>
+    <rect x="429" y="150" width="30" height="40" rx="3" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.35"></rect>
+    <circle cx="444" cy="216" r="3.5" fill="#10b981"></circle>
+  </g>
+
+  <!-- laptop -->
+  <g>
+    <rect x="42" y="152" width="136" height="88" rx="8" fill="#0f172a" fill-opacity="0.85" stroke="#ffffff" stroke-opacity="0.35"></rect>
+    <rect x="51" y="161" width="118" height="70" rx="5" fill="url(#fi-screen)"></rect>
+    <rect x="59" y="171" width="44" height="5" rx="2.5" fill="#4f46e5"></rect>
+    <rect x="59" y="182" width="102" height="4" rx="2" fill="#cbd5e1"></rect>
+    <rect x="59" y="190" width="86" height="4" rx="2" fill="#cbd5e1"></rect>
+    <rect x="59" y="198" width="94" height="4" rx="2" fill="#cbd5e1"></rect>
+    <rect x="59" y="211" width="30" height="12" rx="3" fill="#10b981"></rect>
+    <rect x="94" y="211" width="30" height="12" rx="3" fill="#e2e8f0"></rect>
+    <path d="M 26 242 L 194 242 L 184 254 L 36 254 Z" fill="#ffffff" fill-opacity="0.92"></path>
+    <rect x="96" y="244" width="28" height="3" rx="1.5" fill="#c7d2fe"></rect>
+  </g>
+
+  <!-- all-in-one -->
+  <g>
+    <rect x="466" y="146" width="90" height="104" rx="9" fill="#0f172a" fill-opacity="0.85" stroke="#ffffff" stroke-opacity="0.35"></rect>
+    <rect x="473" y="153" width="76" height="76" rx="5" fill="url(#fi-screen)"></rect>
+    <circle cx="511" cy="180" r="12" fill="#c7d2fe"></circle>
+    <circle cx="511" cy="176" r="4.5" fill="#4f46e5"></circle>
+    <path d="M 502 190 a 9 9 0 0 1 18 0" fill="#4f46e5"></path>
+    <rect x="483" y="200" width="56" height="4" rx="2" fill="#94a3b8"></rect>
+    <rect x="493" y="208" width="36" height="4" rx="2" fill="#cbd5e1"></rect>
+    <rect x="488" y="234" width="46" height="4" rx="2" fill="#ffffff" fill-opacity="0.5"></rect>
+    <path d="M 500 250 L 522 250 L 528 268 L 494 268 Z" fill="#ffffff" fill-opacity="0.9"></path>
+  </g>
+
+  <!-- floating badges -->
+  <g>
+    <rect x="148" y="38" width="78" height="24" rx="12" fill="#ffffff"></rect>
+    <circle cx="162" cy="50" r="4" fill="#10b981"></circle>
+    <text x="172" y="54" font-size="11" font-weight="700" fill="#0f172a" font-family="ui-sans-serif, system-ui, sans-serif">Online</text>
+  </g>
+  <g>
+    <circle cx="418" cy="58" r="17" fill="#10b981" stroke="#ffffff" stroke-width="3"></circle>
+    <path d="M 410 58.5 L 415.5 64 L 426 52.5" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+  </g>
+  <g>
+    <rect x="452" y="60" width="92" height="40" rx="9" fill="#ffffff"></rect>
+    <rect x="462" y="70" width="14" height="14" rx="4" fill="#4f46e5"></rect>
+    <rect x="482" y="70" width="48" height="5" rx="2.5" fill="#0f172a" fill-opacity="0.8"></rect>
+    <rect x="482" y="80" width="34" height="4" rx="2" fill="#94a3b8"></rect>
+  </g>
+</svg>
