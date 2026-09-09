@@ -44,6 +44,34 @@ export interface Pc {
   last_reported_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Rolled up from pc_software / pc_printers by `listPcs`; never stored on the row. */
+  software_count?: number;
+  printer_count?: number;
+  /** Printer names, default first, joined for the sheet and the CSV. */
+  printers?: string | null;
+}
+
+/** One installed program, as the agent read it from the Uninstall registry key. */
+export interface PcSoftware {
+  id: number;
+  name: string;
+  version: string | null;
+  publisher: string | null;
+  /** ISO date, or null — many installers never write one. */
+  install_date: string | null;
+}
+
+export type PrinterKind = 'Local' | 'Network' | 'Virtual';
+
+/** One installed printer, as the Windows spooler lists it. */
+export interface PcPrinter {
+  id: number;
+  name: string;
+  driver: string | null;
+  port: string | null;
+  kind: PrinterKind;
+  is_default: number;
+  status: string | null;
 }
 
 // machine_id is owned by the agent API, never by the admin form or CSV import.

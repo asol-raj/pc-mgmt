@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
-import { buildAgentReport } from '../../../lib/agentReport';
+import { buildAgentReport, type AgentReport } from '../../../lib/agentReport';
+import { syncPrinters, syncSoftware } from '../../../lib/pcLists';
 
 export const prerender = false;
 
@@ -31,6 +32,18 @@ function changedFields(existing: any, detected: Record<string, string | number>)
     if (String(current ?? '') !== String(value)) patch[key] = value;
   }
   return patch;
+}
+
+/**
+ * Stores whichever of the two lists the report carried, returning the names of the
+ * ones that actually changed so they show up in `updated_fields` beside the columns.
+ * A report without a `software` or `printers` key leaves that list as it was.
+ */
+async function storeLists(pcId: number, report: AgentReport): Promise<string[]> {
+  const changed: string[] = [];
+  if (report.software && (await syncSoftware(pcId, report.software))) changed.push('software');
+  if (report.printers && (await syncPrinters(pcId, report.printers))) changed.push('printers');
+  return changed;
 }
 
 // Lets the agent app verify its API key and the URL at install time.
@@ -98,13 +111,15 @@ export const POST: APIRoute = async ({ request }) => {
         existing.id,
       ]);
 
+      const updated = [...Object.keys(patch), ...(await storeLists(existing.id, report))];
+
       return json(
         {
-          status: Object.keys(patch).length > 0 ? 'updated' : 'unchanged',
+          status: updated.length > 0 ? 'updated' : 'unchanged',
           id: existing.id,
           asset_tag: existing.asset_tag,
           machine_id: machine_id || existing.machine_id,
-          updated_fields: Object.keys(patch),
+          updated_fields: updated,
         },
         200
       );
@@ -140,6 +155,7 @@ export const POST: APIRoute = async ({ request }) => {
     if (machine_id) record.machine_id = machine_id;
 
     const [result]: any = await db.query('INSERT INTO pcs SET ?', [record]);
+    const lists = await storeLists(result.insertId, report);
 
     return json(
       {
@@ -147,7 +163,7 @@ export const POST: APIRoute = async ({ request }) => {
         id: result.insertId,
         asset_tag: record.asset_tag,
         machine_id: machine_id || null,
-        updated_fields: Object.keys(detected),
+        updated_fields: [...Object.keys(detected), ...lists],
       },
       201
     );
@@ -163,13 +179,14 @@ export const POST: APIRoute = async ({ request }) => {
             { ...patch, last_reported_at: new Date() },
             rows[0].id,
           ]);
+          const updated = [...Object.keys(patch), ...(await storeLists(rows[0].id, report))];
           return json(
             {
-              status: Object.keys(patch).length > 0 ? 'updated' : 'unchanged',
+              status: updated.length > 0 ? 'updated' : 'unchanged',
               id: rows[0].id,
               asset_tag: rows[0].asset_tag,
               machine_id,
-              updated_fields: Object.keys(patch),
+              updated_fields: updated,
             },
             200
           );

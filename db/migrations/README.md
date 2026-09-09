@@ -40,9 +40,15 @@ error and stops the boot.
 Because tracking is by filename, never edit or rename a migration that has already
 run anywhere — add a new one instead.
 
+The runner splits a file into statements on `;`, so a semicolon inside a `COMMENT`
+string breaks the statement in two — write comments without one.
+
 ## Applied so far
 
 - `0001_add_os_edition_and_network.sql` — adds `os_edition`, `ip_address`, `ip_config`.
 - `0002_add_last_reported_at.sql` — adds `last_reported_at`, set by the agent API.
 - `0003_add_machine_id.sql` — adds the unique `machine_id` the agent API matches on.
 - `0004_add_used_by.sql` — adds the admin-owned `used_by` person name.
+- `0005_add_multimedia_devices.sql` — adds the `audio_output`, `microphone`, `camera` health enums.
+- `0006_add_software_and_printers.sql` — adds the `pc_software` and `pc_printers` child tables the
+  agent fills, one row per program/printer, cascading on PC delete.

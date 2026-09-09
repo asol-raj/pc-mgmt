@@ -1,11 +1,12 @@
 import type { APIRoute } from 'astro';
 import db from '../../../lib/db';
 import { validatePcInput } from '../../../lib/validate';
+import { listPcs } from '../../../lib/pcs';
 
 export const prerender = false;
 
 export const GET: APIRoute = async () => {
-  const [rows] = await db.query('SELECT * FROM pcs ORDER BY name ASC');
+  const rows = await listPcs();
   return new Response(JSON.stringify(rows), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },

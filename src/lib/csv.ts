@@ -19,6 +19,7 @@ const EXPORT_COLUMNS = [
   'status',
   'performance',
   'softwares',
+  'printers',
   'assigned_users',
   'audio_output',
   'microphone',

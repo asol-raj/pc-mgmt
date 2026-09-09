@@ -38,6 +38,35 @@ const DETECTED_STRINGS: Record<string, number> = {
   assigned_users: 255,
 };
 
+/** Column lengths from db/migrations/0006, so an oversize name is a 400 and not a MySQL error. */
+const SOFTWARE_LIMITS = { name: 200, version: 100, publisher: 200 } as const;
+const PRINTER_LIMITS = { name: 200, driver: 200, port: 200, status: 50 } as const;
+export const PRINTER_KIND_VALUES = ['Local', 'Network', 'Virtual'];
+
+// Sanity caps on the list lengths. A real PC has a few dozen to a few hundred
+// programs and a handful of printers; anything past these is a runaway agent.
+const MAX_SOFTWARE_ITEMS = 2000;
+const MAX_PRINTER_ITEMS = 200;
+
+/** One installed program as the agent reports it. */
+export interface SoftwareItem {
+  name: string;
+  version: string | null;
+  publisher: string | null;
+  /** YYYY-MM-DD, or null. */
+  install_date: string | null;
+}
+
+/** One installed printer as the agent reports it. */
+export interface PrinterItem {
+  name: string;
+  driver: string | null;
+  port: string | null;
+  kind: string;
+  is_default: number;
+  status: string | null;
+}
+
 export interface AgentReport {
   /**
    * Stable per-machine id (Windows MachineGuid / hardware UUID). The strongest
@@ -56,6 +85,76 @@ export interface AgentReport {
   detected: Record<string, string | number>;
   /** Only used when the PC is new to the register — the agent never sends it. */
   location: string;
+  /**
+   * Installed programs, one entry each. `undefined` when the report carried no
+   * `software` key at all (an older agent), which leaves the stored list alone; an
+   * empty array is a positive "nothing installed" and clears it.
+   */
+  software?: SoftwareItem[];
+  /** Installed printers, on the same undefined-vs-empty terms as `software`. */
+  printers?: PrinterItem[];
+}
+
+/** A trimmed string of at most `max` characters, or null when blank. Longer values are cut, not refused: a program's name is not worth failing the whole report over. */
+function clipped(value: unknown, max: number): string | null {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  return text.length > max ? text.slice(0, max) : text;
+}
+
+/** YYYY-MM-DD if the value is a plausible calendar date, otherwise null. */
+function isoDate(value: unknown): string | null {
+  const text = clipped(value, 10);
+  if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const date = new Date(`${text}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : text;
+}
+
+function parseSoftware(raw: unknown): { items?: SoftwareItem[]; error?: string } {
+  if (raw === undefined || raw === null) return {};
+  if (!Array.isArray(raw)) return { error: 'software must be an array of { name, version, publisher, install_date }' };
+  if (raw.length > MAX_SOFTWARE_ITEMS) return { error: `software may list at most ${MAX_SOFTWARE_ITEMS} entries` };
+
+  const items: SoftwareItem[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') return { error: 'each software entry must be an object' };
+    const name = clipped(entry.name, SOFTWARE_LIMITS.name);
+    if (!name) continue; // a nameless entry says nothing worth storing
+    items.push({
+      name,
+      version: clipped(entry.version, SOFTWARE_LIMITS.version),
+      publisher: clipped(entry.publisher, SOFTWARE_LIMITS.publisher),
+      install_date: isoDate(entry.install_date),
+    });
+  }
+  return { items };
+}
+
+function parsePrinters(raw: unknown): { items?: PrinterItem[]; error?: string } {
+  if (raw === undefined || raw === null) return {};
+  if (!Array.isArray(raw)) return { error: 'printers must be an array of { name, driver, port, kind, is_default, status }' };
+  if (raw.length > MAX_PRINTER_ITEMS) return { error: `printers may list at most ${MAX_PRINTER_ITEMS} entries` };
+
+  const items: PrinterItem[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') return { error: 'each printer entry must be an object' };
+    const name = clipped(entry.name, PRINTER_LIMITS.name);
+    if (!name) continue;
+    const kind = clipped(entry.kind, 20) ?? 'Local';
+    if (!PRINTER_KIND_VALUES.includes(kind)) {
+      return { error: `printer kind must be one of ${PRINTER_KIND_VALUES.join(', ')}` };
+    }
+    items.push({
+      name,
+      driver: clipped(entry.driver, PRINTER_LIMITS.driver),
+      port: clipped(entry.port, PRINTER_LIMITS.port),
+      kind,
+      is_default: entry.is_default === true || entry.is_default === 1 || entry.is_default === '1' ? 1 : 0,
+      status: clipped(entry.status, PRINTER_LIMITS.status),
+    });
+  }
+  return { items };
 }
 
 function textValue(source: Record<string, any>, key: string): string {
@@ -132,6 +231,12 @@ export function buildAgentReport(body: any): { report?: AgentReport; error?: str
   const location = textValue(source, 'location');
   if (location.length > 150) return { error: 'location must be 150 characters or fewer' };
 
+  const software = parseSoftware(source.software);
+  if (software.error) return { error: software.error };
+
+  const printers = parsePrinters(source.printers);
+  if (printers.error) return { error: printers.error };
+
   return {
     report: {
       machine_id,
@@ -139,6 +244,8 @@ export function buildAgentReport(body: any): { report?: AgentReport; error?: str
       name,
       detected,
       location,
+      software: software.items,
+      printers: printers.items,
     },
   };
 }

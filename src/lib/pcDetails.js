@@ -6,6 +6,16 @@ export function formatDateTime(value, emptyLabel) {
   return Number.isNaN(date.getTime()) ? emptyLabel : date.toLocaleString();
 }
 
+const plural = (count, noun) => `${count} ${noun}${Number(count) === 1 ? '' : 's'}`;
+
+/** A YYYY-MM-DD value as a plain local date, or '' when there is none. */
+export function formatDate(value) {
+  if (!value) return '';
+  const text = String(value).slice(0, 10);
+  const date = new Date(`${text}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
+}
+
 // Every column of the row, shown as label/value pairs in the details modal.
 export const DETAIL_FIELDS = [
   { key: 'asset_tag', label: 'Asset Tag' },
@@ -27,7 +37,22 @@ export const DETAIL_FIELDS = [
   { key: 'ip_config', label: 'IP Configuration' },
   { key: 'status', label: 'Status', badge: 'status' },
   { key: 'performance', label: 'Performance', badge: 'performance' },
-  { key: 'softwares', label: 'Softwares Installed' },
+  // Both lists live in child tables and open in a grid (see ListModal). The drawer
+  // line shows the count; `list` names which list the View button opens. A PC last
+  // seen by an older agent has no rows but may still carry the comma-separated
+  // `softwares` string, which is shown as before rather than pretending it is empty.
+  {
+    key: 'softwares',
+    label: 'Softwares Installed',
+    list: 'software',
+    value: (pc) => (Number(pc.software_count) > 0 ? plural(pc.software_count, 'program') : pc.softwares),
+  },
+  {
+    key: 'printers',
+    label: 'Printers',
+    list: 'printers',
+    value: (pc) => (Number(pc.printer_count) > 0 ? plural(pc.printer_count, 'printer') : null),
+  },
   { key: 'assigned_users', label: 'Login Accounts' },
   { key: 'audio_output', label: 'Audio / Speaker' },
   { key: 'microphone', label: 'Microphone' },

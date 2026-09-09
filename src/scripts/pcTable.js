@@ -2,7 +2,39 @@
 // admin dashboard. Both Alpine components spread this in, so a change to sorting,
 // filtering or the drawer lands on both at once.
 import { REGISTER_COLUMNS, DATA_COLUMNS, compareVal, statusBadgeClass, performanceBadgeClass } from '../lib/columns.js';
-import { DETAIL_FIELDS, detailValue } from '../lib/pcDetails.js';
+import { DETAIL_FIELDS, detailValue, formatDate } from '../lib/pcDetails.js';
+
+// The two per-PC lists the drawer opens in a grid. Rows come from the child tables
+// on demand — a PC can carry a few hundred programs, which is not worth shipping
+// with every page load for the one record somebody actually opens.
+const LIST_KINDS = {
+  software: {
+    title: 'Installed software',
+    noun: 'programs',
+    endpoint: 'software',
+    hint: 'What Add/Remove Programs listed on the last report',
+    columns: [
+      { key: 'name', label: 'Name', strong: true },
+      { key: 'version', label: 'Version', mono: true, muted: true },
+      { key: 'publisher', label: 'Publisher', muted: true },
+      { key: 'install_date', label: 'Installed', value: (row) => formatDate(row.install_date), muted: true },
+    ],
+  },
+  printers: {
+    title: 'Installed printers',
+    noun: 'printers',
+    endpoint: 'printers',
+    hint: 'Status is as the print spooler last saw it',
+    columns: [
+      { key: 'name', label: 'Name', strong: true },
+      { key: 'is_default', label: 'Default', value: (row) => (Number(row.is_default) ? 'Yes' : '') },
+      { key: 'kind', label: 'Type' },
+      { key: 'status', label: 'Status' },
+      { key: 'port', label: 'Port', mono: true, muted: true },
+      { key: 'driver', label: 'Driver', muted: true },
+    ],
+  },
+};
 
 // Fields the search box looks at. Kept wide on purpose — one box should find a PC
 // however the person remembers it: by desk, by owner, by extension, by IP.
@@ -54,6 +86,7 @@ function tableState() {
 
     selectedId: null,
     drawerPc: null,
+    listModal: null, // { pc, kind, spec, rows, loading, error, filter, sortKey, sortDir }
 
     /** Reads the rows the page embedded and seeds an empty filter for every column. */
     initTable() {
@@ -206,6 +239,73 @@ function tableState() {
 
     detailValue(field, pc) {
       return detailValue(field, pc);
+    },
+
+    // ---- the software / printer grid -------------------------------------
+
+    /** How many rows the last report stored for this list, from the counts `listPcs` rolls up. */
+    listCount(kind, pc) {
+      return Number(kind === 'software' ? pc.software_count : pc.printer_count) || 0;
+    },
+
+    async openList(pc, kind) {
+      const spec = LIST_KINDS[kind];
+      if (!spec) return;
+      const modal = { pc, kind, spec, rows: [], loading: true, error: null, filter: '', sortKey: 'name', sortDir: 'asc' };
+      this.listModal = modal;
+
+      try {
+        const res = await fetch(`/api/pcs/${pc.id}/${spec.endpoint}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = await res.json();
+        // Only fill the window that is still open; a quick close-and-reopen must not
+        // paint the earlier request's rows into a later one.
+        if (this.listModal !== modal) return;
+        this.listModal.rows = rows;
+      } catch {
+        if (this.listModal !== modal) return;
+        this.listModal.error = 'Could not load this list. Please try again.';
+      } finally {
+        if (this.listModal === modal) this.listModal.loading = false;
+      }
+    },
+
+    closeList() {
+      this.listModal = null;
+    },
+
+    listSort(key) {
+      const modal = this.listModal;
+      if (!modal) return;
+      if (modal.sortKey !== key) {
+        modal.sortKey = key;
+        modal.sortDir = 'asc';
+      } else {
+        modal.sortDir = modal.sortDir === 'asc' ? 'desc' : 'asc';
+      }
+    },
+
+    /** Plain text for one cell of the grid; blanks stay blank. */
+    listText(col, row) {
+      return asText(col.value ? col.value(row) : row[col.key]);
+    },
+
+    /** The rows the grid shows: filtered on every column, then sorted. */
+    get listRows() {
+      const modal = this.listModal;
+      if (!modal) return [];
+      const q = modal.filter.trim().toLowerCase();
+      const rows = q
+        ? modal.rows.filter((row) => modal.spec.columns.some((col) => this.listText(col, row).toLowerCase().includes(q)))
+        : [...modal.rows];
+      const col = modal.spec.columns.find((c) => c.key === modal.sortKey);
+      if (!col) return rows;
+      const dir = modal.sortDir === 'desc' ? -1 : 1;
+      const keyOf = (row) => {
+        const value = col.value ? col.value(row) : row[col.key];
+        return value === '' ? null : value;
+      };
+      return rows.sort((a, b) => dir * compareVal(keyOf(a), keyOf(b)) || compareVal(a.name, b.name));
     },
 
     /**

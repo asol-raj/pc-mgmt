@@ -4,12 +4,12 @@ import TopBar from '../components/TopBar.astro';
 import RegisterTable from '../components/RegisterTable.astro';
 import DataTable from '../components/DataTable.astro';
 import RecordDrawer from '../components/RecordDrawer.astro';
+import ListModal from '../components/ListModal.astro';
 import { MonitorX, ShieldCheck, ClipboardCopy, Check } from '@lucide/astro';
-import db from '../lib/db';
+import { listPcs } from '../lib/pcs';
 import type { Pc } from '../lib/types';
 
-const [rows] = await db.query('SELECT * FROM pcs ORDER BY name ASC');
-const pcs = rows as Pc[];
+const pcs: Pc[] = await listPcs();
 ---
 
 <Layout title="PC Register">
@@ -68,6 +68,7 @@ const pcs = rows as Pc[];
     </footer>
 
     <RecordDrawer />
+    <ListModal />
   </div>
 
   <script type="application/json" id="pcs-data" set:html={JSON.stringify(pcs)} />

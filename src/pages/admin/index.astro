@@ -4,7 +4,8 @@ import TopBar from '../../components/TopBar.astro';
 import RegisterTable from '../../components/RegisterTable.astro';
 import DataTable from '../../components/DataTable.astro';
 import RecordDrawer from '../../components/RecordDrawer.astro';
-import db from '../../lib/db';
+import ListModal from '../../components/ListModal.astro';
+import { listPcs } from '../../lib/pcs';
 import type { Pc } from '../../lib/types';
 import {
   ExternalLink,
@@ -19,8 +20,7 @@ import {
   ClipboardCopy,
 } from '@lucide/astro';
 
-const [rows] = await db.query('SELECT * FROM pcs ORDER BY name ASC');
-const pcs = rows as Pc[];
+const pcs: Pc[] = await listPcs();
 
 const label = 'text-[11px] font-semibold text-slate-500';
 const field = 'rounded-lg border border-slate-300 px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400';
@@ -144,6 +144,7 @@ const field = 'rounded-lg border border-slate-300 px-3 py-2 text-[13px] focus:ou
     </footer>
 
     <RecordDrawer admin />
+    <ListModal />
 
     <!-- An inline edit that failed: the row kept its old value -->
     <div

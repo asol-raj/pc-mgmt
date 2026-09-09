@@ -206,7 +206,9 @@ export const DATA_COLUMNS = [
   { key: 'audio_output', label: 'Audio', type: 'select', options: ['Working', 'Disabled', 'Faulty', 'None'] },
   { key: 'microphone', label: 'Mic', type: 'select', options: ['Working', 'Disabled', 'Faulty', 'None'] },
   { key: 'camera', label: 'Camera', type: 'select', options: ['Working', 'Disabled', 'Faulty', 'None'] },
+  { key: 'software_count', label: 'Programs', align: 'right' },
   { key: 'softwares', label: 'Softwares', wide: true },
+  { key: 'printers', label: 'Printers', wide: true },
   { key: 'comments', label: 'Comments', wide: true },
   {
     key: 'last_reported_at',

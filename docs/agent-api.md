@@ -49,7 +49,9 @@ Windows host name).
 | `ip_address` | string | IPv4 or IPv6 |
 | `ip_config` | enum | `Static` \| `Dynamic` |
 | `teamviewer_id` | string (≤50) | |
-| `softwares` | string (≤4000) | Comma-separated list of installed software |
+| `softwares` | string (≤4000) | Comma-separated list of installed software names. Kept for older builds; new builds send `software` as well |
+| `software` | array | Installed programs, one object each — see below |
+| `printers` | array | Installed printers, one object each — see below |
 | `location` | string (≤150) | **Only used when the PC is new** — the agent does not send it |
 | `assigned_users` | string (≤255) | Comma-separated local Windows accounts that can sign in, e.g. `cfc, jatin, raj` |
 | `audio_output` | enum | `Working` \| `Disabled` \| `Faulty` \| `None` — see below |
@@ -87,6 +89,48 @@ anything is connected to the analog jack on a desktop tower, so no software can 
 that. `Working` means the audio hardware is present and healthy, which is the thing
 that is actually actionable — a disabled or broken sound device is a fault to fix, an
 unplugged speaker is not something the register can see.
+
+## Installed programs and printers — `software`, `printers`
+
+Both are the *whole* list as of that report. The register stores each in its own
+table (`pc_software`, `pc_printers`) and replaces the PC's rows outright every time
+the key is present, so the dashboard's **View** grid always shows what the machine
+last said. Two things follow:
+
+- **Omit the key** to leave the stored list alone (an older agent build that never
+  sends it does exactly this).
+- **Send an empty array** to say "nothing installed" — the stored rows are removed.
+
+The register compares the incoming list with what it holds and writes nothing when
+they match; a changed list appears as `software` / `printers` in `updated_fields`.
+
+```json
+"software": [
+  { "name": "Google Chrome", "version": "128.0.6613.120", "publisher": "Google LLC", "install_date": "2025-03-14" },
+  { "name": "RETAILvantage Client", "version": "3.2.1", "publisher": null, "install_date": null }
+],
+"printers": [
+  { "name": "HP LaserJet Pro M404", "driver": "HP Universal Printing PCL 6", "port": "192.168.0.50", "kind": "Network", "is_default": true, "status": "Ready" },
+  { "name": "Microsoft Print to PDF", "driver": "Microsoft Print To PDF", "port": "PORTPROMPT:", "kind": "Virtual", "is_default": false, "status": "Ready" }
+]
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `software[].name` | string (≤200) | Required per entry; an entry without one is skipped. Longer values are cut, not refused. |
+| `software[].version` | string (≤100) | |
+| `software[].publisher` | string (≤200) | |
+| `software[].install_date` | `YYYY-MM-DD` | Anything else is stored as null — most installers never write a date |
+| `printers[].name` | string (≤200) | Required per entry |
+| `printers[].driver` | string (≤200) | |
+| `printers[].port` | string (≤200) | `USB001`, an IP port name, a share path, or a pseudo-port such as `PORTPROMPT:` |
+| `printers[].kind` | enum | `Local` \| `Network` \| `Virtual` (Print to PDF, XPS, OneNote, fax). Defaults to `Local` |
+| `printers[].is_default` | boolean | The Windows default printer |
+| `printers[].status` | string (≤50) | `Ready`, `Offline`, `Error`, `Paper Out`, … as the spooler last reported |
+
+Limits: at most 2000 program entries and 200 printer entries per report; more is
+refused with `400`. Fetch what is stored with `GET /api/pcs/<id>/software` and
+`GET /api/pcs/<id>/printers` (no key needed — they are public like `GET /api/pcs`).
 
 ## `machine_id` — how duplicates are prevented
 
@@ -128,7 +172,8 @@ during the initial rollout.
 
 ## What a report can and cannot change
 
-A report **overwrites** the machine-detected fields listed above on every call.
+A report **overwrites** the machine-detected fields listed above on every call, and
+replaces the `software` and `printers` lists whenever it carries them.
 
 That includes `name` and `assigned_users`. These offices rename PCs in Windows to
 match desk extension numbers, and local accounts are created and removed as staff
