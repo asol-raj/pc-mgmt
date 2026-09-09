@@ -251,22 +251,28 @@ function tableState() {
     async openList(pc, kind) {
       const spec = LIST_KINDS[kind];
       if (!spec) return;
-      const modal = { pc, kind, spec, rows: [], loading: true, error: null, filter: '', sortKey: 'name', sortDir: 'asc' };
-      this.listModal = modal;
+      // A serial number, not the object: Alpine hands back a reactive proxy for
+      // anything stored on the component, so `this.listModal === modal` is never
+      // true and comparing identities would leave the window stuck on "Loading…".
+      const request = (this._listRequest = (this._listRequest ?? 0) + 1);
+      this.listModal = { request, pc, kind, spec, rows: [], loading: true, error: null, filter: '', sortKey: 'name', sortDir: 'asc' };
+
+      // Only fill the window that is still open; a quick close-and-reopen must not
+      // paint the earlier request's rows into a later one.
+      const current = () => (this.listModal?.request === request ? this.listModal : null);
 
       try {
         const res = await fetch(`/api/pcs/${pc.id}/${spec.endpoint}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const rows = await res.json();
-        // Only fill the window that is still open; a quick close-and-reopen must not
-        // paint the earlier request's rows into a later one.
-        if (this.listModal !== modal) return;
-        this.listModal.rows = rows;
+        const modal = current();
+        if (modal) modal.rows = rows;
       } catch {
-        if (this.listModal !== modal) return;
-        this.listModal.error = 'Could not load this list. Please try again.';
+        const modal = current();
+        if (modal) modal.error = 'Could not load this list. Please try again.';
       } finally {
-        if (this.listModal === modal) this.listModal.loading = false;
+        const modal = current();
+        if (modal) modal.loading = false;
       }
     },
 
